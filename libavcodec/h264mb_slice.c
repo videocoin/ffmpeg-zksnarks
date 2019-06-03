@@ -2583,6 +2583,61 @@ static void save_coeff(H264MBContext *h, H264SliceContext *sl)
 	h->intra16x16_pred_mode = sl->intra16x16_pred_mode;
 }
 
+static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
+{
+    const int mb_xy   = sl->mb_xy;
+    const int mb_type = h->cur_pic.mb_type[mb_xy];
+    int is_complex    = CONFIG_SMALL || sl->is_complex ||
+                        IS_INTRA_PCM(mb_type) || sl->qscale == 0;
+
+    if (CHROMA444(h) || is_complex || h->pixel_shift) {
+        printf("-----Format is not supported-----\n");
+        return;
+    }
+
+    if (IS_INTRA_PCM(mb_type)) {
+        printf("------INTRA PCM is not supported -----\n");
+        return;
+    }
+
+    if (IS_INTRA4x4(mb_type)) {
+        printf("------INTRA 4x4; INTRA 8x8 are not supported-------\n");
+        return;
+    }
+
+    // INTRA 16x16 mode
+    if (IS_INTRA(mb_type)) {
+        // We have to store prediction mode
+        h->intra16x16_pred_mode = sl->intra16x16_pred_mode;
+        // linesize is required to extract values from neighbour macroblocks left and top
+        h->linesize = sl->linesize;
+        // This is the place where mb should be decoded. From this initial point we have to find neighbour values
+#define BITS   8
+#define PIXEL_SHIFT (BITS >> 4)
+        uint8_t *dest_y  = h->cur_pic.f->data[0] + ((sl->mb_x << PIXEL_SHIFT) + sl->mb_y * sl->linesize)  * 16;
+
+        uint8_t *p_mb = h->mb_decoded;
+        uint8_t *p_dest_y = dest_y;
+        for (int i = 0; i < 16; ++i) {
+            memcpy(p_mb, p_dest_y, 16);
+            p_mb += 16;
+            p_dest_y += 16;
+        }
+
+        h->mb_has_neighbour_top = sl->mb_y > 0;
+        if (h->mb_has_neighbour_top) {
+            memcpy(h->mb_neighbour_top, dest_y - sl->linesize, 16);
+        }
+
+        h->mb_has_neighbour_left = sl->mb_x > 0;
+        if (h->mb_has_neighbour_left) {
+            for (int i = 0; i < 16; ++i) {
+                h->mb_neighbour_left[i] = *(dest_y + sl->linesize * i - 1);
+            }
+        }
+    }
+}
+
 
 static int decode_slice(struct AVCodecContext *avctx, void *arg)
 {
@@ -2651,7 +2706,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                 if(hmb->req_mb_num == sl->mb_xy)
                 	save_coeff(h,sl);
                 ff_h264_hl_decode_mb(h, sl);
-
+                save_mb_data(h, sl);
             }
 
             // FIXME optimal? or let mb_decode decode 16x32 ?

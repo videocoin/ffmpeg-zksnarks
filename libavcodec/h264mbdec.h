@@ -254,15 +254,23 @@ typedef struct H264MBContext {
     int ref2frm[MAX_SLICES][2][64];     ///< reference to frame number lists, used in the loop filter, the first 2 are for -2,-1
 #define MAX_MB_DATA_SIZE 4*1024
     // H264MB Specific data
-    int req_mb_num;
-    int crnt_frame_num;
-    int req_frame_num;
-    int16_t mb_data[16 * 48 * 2]; // 3 planes of 16x16 32bit coefficients
-    int     mb_size;
+    int             req_mb_num;
+    int             crnt_frame_num;
+    int             req_frame_num;
+    int16_t         mb_data[16 * 48 * 2]; // 3 planes of 16x16 32bit coefficients
+    int             mb_size;
 
-    int     mb_type;
-    int     mb_luma_dc;
-    int     intra16x16_pred_mode;
+    int             mb_type;
+    int             mb_luma_dc;
+    ptrdiff_t       linesize;
+    uint8_t         mb_decoded[16 * 16]; // will be used for debug. Circuit should generate identical data to this
+
+    // This data will be used to decode macroblock
+    uint8_t         mb_neighbour_top[16];
+    uint8_t         mb_neighbour_left[16];
+    int             mb_has_neighbour_top;
+    int             mb_has_neighbour_left;
+    int             intra16x16_pred_mode;
 } H264MBContext;
 
 /**
