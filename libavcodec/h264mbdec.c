@@ -407,6 +407,7 @@ static av_cold int h4mb_decode_init(AVCodecContext *avctx)
         return ret;
     hmb->crnt_frame_num = 0;
     hmb->req_frame_num = 0;
+    hmb->req_mb_num = -1;
     ret = ff_thread_once(&h264_vlc_init, ff_h264_decode_init_vlc);
     if (ret != 0) {
         av_log(avctx, AV_LOG_ERROR, "pthread_once has failed.");
@@ -989,6 +990,26 @@ static int send_next_delayed_frame(H264Context *h, AVFrame *dst_frame,
     return buf_index;
 }
 
+static int read_options(H264MBContext *hmb, AVPacket *pkt)
+{
+    int sideDataSize;
+    char *sideData = av_packet_get_side_data(pkt, AV_PKT_DATA_STRINGS_METADATA, &sideDataSize);
+    AVDictionary *frameDict = NULL;
+    if (sideData && av_packet_unpack_dictionary(sideData, sideDataSize, &frameDict) == 0) {
+
+        AVDictionaryEntry *ent = av_dict_get(frameDict, "req_mb", NULL, 0);
+        if (ent) {
+            char *value = ent->value;
+
+            hmb->req_mb_num = atoi(value);
+        }
+
+        av_dict_free(&frameDict);
+    }
+
+    return 0;
+}
+
 static int h4mb_decode_frame(AVCodecContext *avctx, void *data,
                              int *got_frame, AVPacket *avpkt)
 {
@@ -1003,6 +1024,8 @@ static int h4mb_decode_frame(AVCodecContext *avctx, void *data,
     h->flags = avctx->flags;
     h->setup_finished = 0;
     h->nb_slice_ctx_queued = 0;
+
+    read_options(hmb, avpkt);
 
     ff_h264_unref_picture(h, &h->last_pic_for_ec);
 
