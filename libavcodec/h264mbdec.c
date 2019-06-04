@@ -852,6 +852,15 @@ static char* itoa(int val, int base){
 
 }
 
+static void add_metadata(AVFrame *dst, const char *key, uint8_t *data, size_t data_len)
+{
+    char *data_base64 = malloc(data_len * 2);
+    memset(data_base64, 0x00, data_len * 2);
+    av_base64_encode(data_base64, data_len * 2, (char *)data, data_len);
+    av_dict_set(&dst->metadata, key, data_base64, 0);
+    free(data_base64);
+}
+
 static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
 {
     AVFrame *src = srcp->f;
@@ -864,16 +873,17 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
     av_dict_set(&dst->metadata, "stereo_mode", ff_h264_sei_stereo_mode(&h->sei.frame_packing), 0);
 
     {
-		char *mbDataBase64 = malloc(hmb->mb_size * 2);
-		memset(mbDataBase64, 0x00, hmb->mb_size * 2);
-		av_base64_encode(mbDataBase64, hmb->mb_size * 2, (char *)hmb->mb_data, hmb->mb_size);
-		av_dict_set(&dst->metadata, "macroblock", mbDataBase64, 0);
-		free(mbDataBase64);
-    }
-    if(1)
-    {
-    	   av_dict_set(&dst->metadata, "mb_type", itoa(hmb->mb_type,10), 0);
-    	   av_dict_set(&dst->metadata, "intra16x16_pred_mode", itoa(hmb->intra16x16_pred_mode,10), 0);
+		// TODO: hmb->mb_size is in bytes or as len to hmb->mb_data?
+		add_metadata(dst, "macroblock", (uint8_t *)hmb->mb_data, hmb->mb_size);
+		add_metadata(dst, "luma_decoded", hmb->luma_decoded, sizeof(hmb->luma_decoded));
+
+        av_dict_set_int(&dst->metadata, "mb_type", hmb->mb_type, 0);
+        av_dict_set_int(&dst->metadata, "intra16x16_pred_mode", hmb->intra16x16_pred_mode, 0);
+		av_dict_set_int(&dst->metadata, "luma_has_neighbour_top", hmb->luma_has_neighbour_top, 0);
+		av_dict_set_int(&dst->metadata, "luma_has_neighbour_left", hmb->luma_has_neighbour_left, 0);
+
+        add_metadata(dst, "luma_neighbour_top", hmb->luma_neighbour_top, sizeof(hmb->luma_neighbour_top));
+        add_metadata(dst, "luma_neighbour_left", hmb->luma_neighbour_left, sizeof(hmb->luma_neighbour_left));
     }
 
     hmb->crnt_frame_num++;

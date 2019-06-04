@@ -2448,7 +2448,7 @@ static int fill_filter_caches(const H264Context *h, H264SliceContext *sl, int mb
 
 static void loop_filter(const H264Context *h, H264SliceContext *sl, int start_x, int end_x)
 {
-    uint8_t *dest_y, *dest_cb, *dest_cr;
+    uint8_t *luma_src, *dest_cb, *dest_cr;
     int linesize, uvlinesize, mb_x, mb_y;
     const int end_mb_y       = sl->mb_y + FRAME_MBAFF(h);
     const int old_slice_type = sl->slice_type;
@@ -2471,7 +2471,7 @@ static void loop_filter(const H264Context *h, H264SliceContext *sl, int start_x,
 
                 sl->mb_x = mb_x;
                 sl->mb_y = mb_y;
-                dest_y  = h->cur_pic.f->data[0] +
+                luma_src  = h->cur_pic.f->data[0] +
                           ((mb_x << pixel_shift) + mb_y * sl->linesize) * 16;
                 dest_cb = h->cur_pic.f->data[1] +
                           (mb_x << pixel_shift) * (8 << CHROMA444(h)) +
@@ -2485,7 +2485,7 @@ static void loop_filter(const H264Context *h, H264SliceContext *sl, int start_x,
                     linesize   = sl->mb_linesize   = sl->linesize   * 2;
                     uvlinesize = sl->mb_uvlinesize = sl->uvlinesize * 2;
                     if (mb_y & 1) { // FIXME move out of this function?
-                        dest_y  -= sl->linesize   * 15;
+                        luma_src  -= sl->linesize   * 15;
                         dest_cb -= sl->uvlinesize * (block_h - 1);
                         dest_cr -= sl->uvlinesize * (block_h - 1);
                     }
@@ -2493,7 +2493,7 @@ static void loop_filter(const H264Context *h, H264SliceContext *sl, int start_x,
                     linesize   = sl->mb_linesize   = sl->linesize;
                     uvlinesize = sl->mb_uvlinesize = sl->uvlinesize;
                 }
-                backup_mb_border(h, sl, dest_y, dest_cb, dest_cr, linesize,
+                backup_mb_border(h, sl, luma_src, dest_cb, dest_cr, linesize,
                                  uvlinesize, 0);
                 if (fill_filter_caches(h, sl, mb_type))
                     continue;
@@ -2501,10 +2501,10 @@ static void loop_filter(const H264Context *h, H264SliceContext *sl, int start_x,
                 sl->chroma_qp[1] = get_chroma_qp(h->ps.pps, 1, h->cur_pic.qscale_table[mb_xy]);
 
                 if (FRAME_MBAFF(h)) {
-                    ff_h264_filter_mb(h, sl, mb_x, mb_y, dest_y, dest_cb, dest_cr,
+                    ff_h264_filter_mb(h, sl, mb_x, mb_y, luma_src, dest_cb, dest_cr,
                                       linesize, uvlinesize);
                 } else {
-                    ff_h264_filter_mb_fast(h, sl, mb_x, mb_y, dest_y, dest_cb,
+                    ff_h264_filter_mb_fast(h, sl, mb_x, mb_y, luma_src, dest_cb,
                                            dest_cr, linesize, uvlinesize);
                 }
             }
@@ -2607,32 +2607,34 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
 
     // INTRA 16x16 mode
     if (IS_INTRA(mb_type)) {
-        // We have to store prediction mode
+        ptrdiff_t stride = sl->linesize;
+
         h->intra16x16_pred_mode = sl->intra16x16_pred_mode;
-        // linesize is required to extract values from neighbour macroblocks left and top
-        h->linesize = sl->linesize;
-        // This is the place where mb should be decoded. From this initial point we have to find neighbour values
+        h->mb_type = h->cur_pic.mb_type[sl->mb_xy];
+
+        // This is the place where mb should be decoded.
+        // From this initial point we have to find neighbour values
 #define BITS   8
 #define PIXEL_SHIFT (BITS >> 4)
-        uint8_t *dest_y  = h->cur_pic.f->data[0] + ((sl->mb_x << PIXEL_SHIFT) + sl->mb_y * sl->linesize)  * 16;
+        uint8_t *luma_src  = h->cur_pic.f->data[0] + ((sl->mb_x << PIXEL_SHIFT) + sl->mb_y * stride) * 16;
 
-        uint8_t *p_mb = h->mb_decoded;
-        uint8_t *p_dest_y = dest_y;
+        uint8_t *dest = h->luma_decoded;
+        uint8_t *src = luma_src;
         for (int i = 0; i < 16; ++i) {
-            memcpy(p_mb, p_dest_y, 16);
-            p_mb += 16;
-            p_dest_y += 16;
+            memcpy(dest, src, 16);
+            dest += 16;
+            src += stride;
         }
 
-        h->mb_has_neighbour_top = sl->mb_y > 0;
-        if (h->mb_has_neighbour_top) {
-            memcpy(h->mb_neighbour_top, dest_y - sl->linesize, 16);
+        h->luma_has_neighbour_top = sl->mb_y > 0;
+        if (h->luma_has_neighbour_top) {
+            memcpy(h->luma_neighbour_top, luma_src - stride, 16);
         }
 
-        h->mb_has_neighbour_left = sl->mb_x > 0;
-        if (h->mb_has_neighbour_left) {
+        h->luma_has_neighbour_left = sl->mb_x > 0;
+        if (h->luma_has_neighbour_left) {
             for (int i = 0; i < 16; ++i) {
-                h->mb_neighbour_left[i] = *(dest_y + sl->linesize * i - 1);
+                h->luma_neighbour_left[i] = luma_src[-1+i*stride];
             }
         }
     }
