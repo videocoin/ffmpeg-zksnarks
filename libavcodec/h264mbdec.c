@@ -879,11 +879,10 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
 
         av_dict_set_int(&dst->metadata, "mb_type", hmb->mb_type, 0);
         av_dict_set_int(&dst->metadata, "intra16x16_pred_mode", hmb->intra16x16_pred_mode, 0);
-		av_dict_set_int(&dst->metadata, "luma_has_neighbour_top", hmb->luma_has_neighbour_top, 0);
-		av_dict_set_int(&dst->metadata, "luma_has_neighbour_left", hmb->luma_has_neighbour_left, 0);
 
         add_metadata(dst, "luma_neighbour_top", hmb->luma_neighbour_top, sizeof(hmb->luma_neighbour_top));
         add_metadata(dst, "luma_neighbour_left", hmb->luma_neighbour_left, sizeof(hmb->luma_neighbour_left));
+        av_dict_set_int(&dst->metadata, "luma_neighbour_left_top", hmb->luma_neighbour_left_top, 0);
     }
 
     hmb->crnt_frame_num++;

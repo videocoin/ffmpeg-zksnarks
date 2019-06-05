@@ -2637,6 +2637,10 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
                 h->luma_neighbour_left[i] = luma_src[-1+i*stride];
             }
         }
+
+        if (h->intra16x16_pred_mode == 3) { // PLANE
+            h->luma_neighbour_left_top = luma_src[-stride-1];
+        }
     }
 }
 
