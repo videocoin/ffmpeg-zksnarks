@@ -610,6 +610,34 @@ static av_always_inline void dctcoef_set(int16_t *mb, int high_bit_depth,
         AV_WN16A(mb + index, value);
 }
 
+static void dump_macro_block(uint8_t *mb, int stride, H264SliceContext *sl)
+{
+    printf("[macro block decode] prediction type: %d\n", sl->intra16x16_pred_mode);
+    printf("[macro block decode] x: %03d  y: %03d\n", sl->mb_x, sl->mb_y);
+    printf("[macro block decode] luma pointer: %p\n", (void *)mb);
+    if (sl->mb_y > 0) {
+        // print top
+        uint8_t *top = mb - stride;
+        printf("[macro block decode] luma TOP pointer: %p\n", (void *)top);
+        printf("%02x  ", top[-1]);
+        for (int x = 0; x < 16; ++x) {
+            printf("%02x ", top[x]);
+        }
+        printf("\n");
+        printf("\n");
+    }
+
+    for (int y = 0; y < 16; ++y) {
+        if (sl->mb_x > 0)
+            printf("%02x  ", mb[-1]);
+        for (int x = 0; x < 16; ++x) {
+            printf("%02x ", mb[x]);
+        }
+        printf("\n");
+        mb += stride;
+    }
+}
+
 static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
                                                        H264SliceContext *sl,
                                                        int mb_type, int simple,
@@ -701,7 +729,11 @@ static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
             }
         }
     } else {
+        dump_macro_block(dest_y, linesize, sl);
         h->hpc.pred16x16[sl->intra16x16_pred_mode](dest_y, linesize);
+
+//        dump_macro_block(dest_y, linesize, sl);
+
         if (sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX + p]]) {
             if (!transform_bypass)
                 h->h264dsp.h264_luma_dc_dequant_idct(sl->mb + (p * 256 << pixel_shift),

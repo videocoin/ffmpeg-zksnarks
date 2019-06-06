@@ -2617,6 +2617,12 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
 #define BITS   8
 #define PIXEL_SHIFT (BITS >> 4)
         uint8_t *luma_src  = h->cur_pic.f->data[0] + ((sl->mb_x << PIXEL_SHIFT) + sl->mb_y * stride) * 16;
+        uint8_t *top = luma_src - stride;
+
+        printf("[save macro block] prediction type: %d\n", sl->intra16x16_pred_mode);
+        printf("[save macro block] x: %03d  y: %03d\n", sl->mb_x, sl->mb_y);
+        printf("[save macro block] luma pointer: %p\n", (void *)luma_src);
+        printf("[save macro block] luma TOP pointer: %p\n", (void *)top);
 
         uint8_t *dest = h->luma_decoded;
         uint8_t *src = luma_src;
@@ -2628,7 +2634,7 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
 
         h->luma_has_neighbour_top = sl->mb_y > 0;
         if (h->luma_has_neighbour_top) {
-            memcpy(h->luma_neighbour_top, luma_src - stride, 16);
+            memcpy(h->luma_neighbour_top, top, 16);
         }
 
         h->luma_has_neighbour_left = sl->mb_x > 0;
@@ -2638,8 +2644,17 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
             }
         }
 
-        if (h->intra16x16_pred_mode == 3) { // PLANE
-            h->luma_neighbour_left_top = luma_src[-stride-1];
+        if (h->luma_has_neighbour_left && h->luma_has_neighbour_top) { // PLANE
+            h->luma_neighbour_left_top = top[-1];
+        }
+
+        printf("%02x  ", h->luma_neighbour_left_top);
+        for (int i = 0; i < 16; ++i) {
+            printf("%02x ", h->luma_neighbour_top[i]);
+        }
+        printf("\n\n");
+        for (int i = 0; i < 16; ++i) {
+            printf("%02x\n", h->luma_neighbour_left[i]);
         }
     }
 }
@@ -2711,6 +2726,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             if (ret >= 0) {
                 if(hmb->req_mb_num == sl->mb_xy)
                 	save_coeff(h,sl);
+                save_mb_data(h, sl);
                 ff_h264_hl_decode_mb(h, sl);
                 save_mb_data(h, sl);
             }
