@@ -263,17 +263,16 @@ typedef struct H264MBContext {
     int             mb_type;
     int             mb_luma_dc;
 
-    int             luma_has_neighbour_top;
-    int             luma_has_neighbour_left;
-
     uint8_t         luma_decoded[16 * 16]; // will be used for debug. Circuit should generate identical data to this
 
     // This data will be used to decode macroblock
-    uint8_t         luma_neighbour_top[16];
-    uint8_t         luma_neighbour_left[16];
-    uint8_t         luma_neighbour_left_top; // plane intra prediction
+    uint8_t         luma_top[16];
+    uint8_t         luma_left[16];
+    uint8_t         luma_top_left; // plane intra prediction
 
     int             intra16x16_pred_mode;
+    int             mb_x; // mb_y is present already
+    int             mb_field_decoding_flag;
 } H264MBContext;
 
 /**

@@ -2610,6 +2610,9 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
         ptrdiff_t stride = sl->linesize;
 
         h->intra16x16_pred_mode = sl->intra16x16_pred_mode;
+        h->mb_field_decoding_flag = sl->mb_field_decoding_flag;
+        h->mb_x = sl->mb_x;
+        h->mb_y = sl->mb_y;
         h->mb_type = h->cur_pic.mb_type[sl->mb_xy];
 
         // This is the place where mb should be decoded.
@@ -2620,9 +2623,7 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
         uint8_t *top = luma_src - stride;
 
         printf("[save macro block] prediction type: %d\n", sl->intra16x16_pred_mode);
-        printf("[save macro block] x: %03d  y: %03d\n", sl->mb_x, sl->mb_y);
-        printf("[save macro block] luma pointer: %p\n", (void *)luma_src);
-        printf("[save macro block] luma TOP pointer: %p\n", (void *)top);
+        printf("[save macro block] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
 
         uint8_t *dest = h->luma_decoded;
         uint8_t *src = luma_src;
@@ -2632,29 +2633,29 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
             src += stride;
         }
 
-        h->luma_has_neighbour_top = sl->mb_y > 0;
-        if (h->luma_has_neighbour_top) {
-            memcpy(h->luma_neighbour_top, top, 16);
+        int has_top = sl->mb_y > 0;
+        if (has_top) {
+            memcpy(h->luma_top, top, 16);
         }
 
-        h->luma_has_neighbour_left = sl->mb_x > 0;
-        if (h->luma_has_neighbour_left) {
+        int has_left = sl->mb_x > 0;
+        if (has_left) {
             for (int i = 0; i < 16; ++i) {
-                h->luma_neighbour_left[i] = luma_src[-1+i*stride];
+                h->luma_left[i] = luma_src[-1+i*stride];
             }
         }
 
-        if (h->luma_has_neighbour_left && h->luma_has_neighbour_top) { // PLANE
-            h->luma_neighbour_left_top = top[-1];
+        if (has_top && has_left) { // PLANE
+            h->luma_top_left = top[-1];
         }
 
-        printf("%02x  ", h->luma_neighbour_left_top);
+        printf("%02x  ", h->luma_top_left);
         for (int i = 0; i < 16; ++i) {
-            printf("%02x ", h->luma_neighbour_top[i]);
+            printf("%02x ", h->luma_top[i]);
         }
         printf("\n\n");
         for (int i = 0; i < 16; ++i) {
-            printf("%02x\n", h->luma_neighbour_left[i]);
+            printf("%02x\n", h->luma_left[i]);
         }
     }
 }
@@ -2726,9 +2727,14 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             if (ret >= 0) {
                 if(hmb->req_mb_num == sl->mb_xy)
                 	save_coeff(h,sl);
-                save_mb_data(h, sl);
+//                save_mb_data(h, sl);
+                if(sl->mb_y == 17 && sl->mb_x == 21 ) {
+                    int breakhere = 1;
+                }
+
                 ff_h264_hl_decode_mb(h, sl);
-                save_mb_data(h, sl);
+                if(hmb->req_mb_num == sl->mb_xy)
+                    save_mb_data(h, sl);
             }
 
             // FIXME optimal? or let mb_decode decode 16x32 ?
