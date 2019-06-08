@@ -2611,8 +2611,10 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
 
         h->intra16x16_pred_mode = sl->intra16x16_pred_mode;
         h->mb_field_decoding_flag = sl->mb_field_decoding_flag;
+        h->deblocking_filter = sl->deblocking_filter;
         h->mb_x = sl->mb_x;
-        h->mb_y = sl->mb_y;
+        h->_mb_y = sl->mb_y;
+        h->mb_xy = sl->mb_xy;
         h->mb_type = h->cur_pic.mb_type[sl->mb_xy];
 
         // This is the place where mb should be decoded.
@@ -2633,28 +2635,36 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
             src += stride;
         }
 
-        int has_top = sl->mb_y > 0;
-        if (has_top) {
-            memcpy(h->luma_top, top, 16);
-        }
+        memset(h->luma_top, 0x00, sizeof(h->luma_top));
 
+        int has_top = sl->mb_y > 0;
         int has_left = sl->mb_x > 0;
+
+        if (has_top) {
+            memcpy(h->luma_top+8, top, 16+8);
+        }
         if (has_left) {
             for (int i = 0; i < 16; ++i) {
                 h->luma_left[i] = luma_src[-1+i*stride];
             }
         }
 
-        if (has_top && has_left) { // PLANE
-            h->luma_top_left = top[-1];
+        if (has_top && has_left) {
+            memcpy(h->luma_top, top - 8, 8);
         }
 
-        printf("%02x  ", h->luma_top_left);
-        for (int i = 0; i < 16; ++i) {
+        for (int i = 0; i < 8; ++i) {
+            printf("%02x ", h->luma_top[i]);
+        }
+        printf(" ");
+        for (int i = 8; i < 16+8+8; ++i) {
             printf("%02x ", h->luma_top[i]);
         }
         printf("\n\n");
         for (int i = 0; i < 16; ++i) {
+            for (int k = 0; k < 7; ++k) {
+                printf("   ");
+            }
             printf("%02x\n", h->luma_left[i]);
         }
     }

@@ -38,6 +38,8 @@
 #define CHROMA_IDC 2
 #include "h264_mc_template.c"
 
+#include "h264mbdec.h"
+
 static av_noinline void FUNC(hl_decode_mb)(const H264Context *h, H264SliceContext *sl)
 {
     const int mb_x    = sl->mb_x;
@@ -151,9 +153,16 @@ static av_noinline void FUNC(hl_decode_mb)(const H264Context *h, H264SliceContex
         }
     } else {
         if (IS_INTRA(mb_type)) {
-            if (sl->deblocking_filter)
+            if (sl->deblocking_filter) {
+                H264MBContext *hmb = h;
+                if (hmb->req_mb_num == sl->mb_xy && !IS_INTRA4x4(mb_type))
+                    dump_macro_block(dest_y, linesize, sl);
                 xchg_mb_border(h, sl, dest_y, dest_cb, dest_cr, linesize,
                                uvlinesize, 1, 0, SIMPLE, PIXEL_SHIFT);
+
+                if (hmb->req_mb_num == sl->mb_xy && !IS_INTRA4x4(mb_type))
+                    dump_macro_block(dest_y, linesize, sl);
+            }
 
             if (SIMPLE || !CONFIG_GRAY || !(h->flags & AV_CODEC_FLAG_GRAY)) {
                 h->hpc.pred8x8[sl->chroma_pred_mode](dest_cb, uvlinesize);

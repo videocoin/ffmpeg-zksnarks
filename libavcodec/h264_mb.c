@@ -36,6 +36,7 @@
 #include "qpeldsp.h"
 #include "thread.h"
 
+#include "h264mbdec.h"
 
 static inline int get_lowest_part_list_y(H264SliceContext *sl,
                                          int n, int height, int y_offset, int list)
@@ -611,32 +612,6 @@ static av_always_inline void dctcoef_set(int16_t *mb, int high_bit_depth,
         AV_WN16A(mb + index, value);
 }
 
-static void dump_macro_block(uint8_t *mb, int stride, H264SliceContext *sl)
-{
-    printf("[macro block decode] prediction type: %d\n", sl->intra16x16_pred_mode);
-    printf("[macro block decode] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
-    if (sl->mb_y > 0) {
-        // print top
-        uint8_t *top = mb - stride;
-        printf("%02x  ", top[-1]);
-        for (int x = 0; x < 16; ++x) {
-            printf("%02x ", top[x]);
-        }
-        printf("\n");
-        printf("\n");
-    }
-
-    for (int y = 0; y < 16; ++y) {
-        if (sl->mb_x > 0)
-            printf("%02x  ", mb[-1]);
-        for (int x = 0; x < 16; ++x) {
-            printf("%02x ", mb[x]);
-        }
-        printf("\n");
-        mb += stride;
-    }
-}
-
 static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
                                                        H264SliceContext *sl,
                                                        int mb_type, int simple,
@@ -729,11 +704,15 @@ static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
         }
     } else {
 
-        dump_macro_block(dest_y, linesize, sl);
+        H264MBContext *hmb = h;
+
+        if (hmb->req_mb_num == sl->mb_xy)
+            dump_macro_block(dest_y, linesize, sl);
 
         h->hpc.pred16x16[sl->intra16x16_pred_mode](dest_y, linesize);
 
-        dump_macro_block(dest_y, linesize, sl);
+        if (hmb->req_mb_num == sl->mb_xy)
+            dump_macro_block(dest_y, linesize, sl);
 
         if (sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX + p]]) {
             if (!transform_bypass)

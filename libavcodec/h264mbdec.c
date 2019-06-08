@@ -879,13 +879,15 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
 
         av_dict_set_int(&dst->metadata, "mb_type", hmb->mb_type, 0);
         av_dict_set_int(&dst->metadata, "mb_x", hmb->mb_x, 0);
-        av_dict_set_int(&dst->metadata, "mb_y", hmb->mb_y, 0);
+        av_dict_set_int(&dst->metadata, "mb_y", hmb->_mb_y, 0);
+        av_dict_set_int(&dst->metadata, "mb_width", hmb->mb_width, 0);
+        av_dict_set_int(&dst->metadata, "mb_xy", hmb->mb_xy, 0);
         av_dict_set_int(&dst->metadata, "intra16x16_pred_mode", hmb->intra16x16_pred_mode, 0);
         av_dict_set_int(&dst->metadata, "mb_field_decoding_flag", hmb->mb_field_decoding_flag, 0);
+        av_dict_set_int(&dst->metadata, "deblocking_filter", hmb->deblocking_filter, 0);
 
         add_metadata(dst, "luma_top", hmb->luma_top, sizeof(hmb->luma_top));
         add_metadata(dst, "luma_left", hmb->luma_left, sizeof(hmb->luma_left));
-        av_dict_set_int(&dst->metadata, "luma_top_left", hmb->luma_top_left, 0);
     }
 
     hmb->crnt_frame_num++;
@@ -1095,6 +1097,41 @@ static int h4mb_decode_frame(AVCodecContext *avctx, void *data,
     ff_h264_unref_picture(h, &h->last_pic_for_ec);
 
     return get_consumed_bytes(buf_index, buf_size);
+}
+
+void dump_macro_block(uint8_t *mb, int stride, H264SliceContext *sl)
+{
+    printf("[macro block decode] prediction type: %d\n", sl->intra16x16_pred_mode);
+    printf("[macro block decode] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
+    if (sl->mb_y > 0) {
+        // print top
+        uint8_t *top = mb - stride;
+        if (sl->mb_x > 0) {
+            for (int i = 0; i < 8; ++i) {
+                printf("%02x ", top[-8 + i]);
+            }
+            printf(" ");
+        }
+        for (int x = 8; x < 16+8+8; ++x) {
+            printf("%02x ", top[x]);
+        }
+        printf("\n");
+        printf("\n");
+    }
+
+    for (int y = 0; y < 16; ++y) {
+        if (sl->mb_x > 0) {
+            for (int i = 0; i < 7; ++i) {
+                printf("   ");
+            }
+            printf("%02x  ", mb[-1]);
+        }
+        for (int x = 0; x < 16; ++x) {
+            printf("%02x ", mb[x]);
+        }
+        printf("\n");
+        mb += stride;
+    }
 }
 
 #define OFFSET(x) offsetof(H264Context, x)
