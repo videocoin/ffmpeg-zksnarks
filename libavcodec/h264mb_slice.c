@@ -2624,24 +2624,40 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
         uint8_t *luma_src  = h->cur_pic.f->data[0] + ((sl->mb_x << PIXEL_SHIFT) + sl->mb_y * stride) * 16;
         uint8_t *top = luma_src - stride;
 
-        printf("[save macro block] prediction type: %d\n", sl->intra16x16_pred_mode);
-        printf("[save macro block] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
+        dump_macro_block(luma_src, stride, sl);
 
-        uint8_t *dest = h->luma_decoded;
-        uint8_t *src = luma_src;
-        for (int i = 0; i < 16; ++i) {
-            memcpy(dest, src, 16);
-            dest += 16;
-            src += stride;
-        }
-
+        memset(h->top_border, 0x00, sizeof(h->top_border));
         memset(h->luma_top, 0x00, sizeof(h->luma_top));
+        memset(h->luma_left, 0x00, sizeof(h->luma_left));
 
         int has_top = sl->mb_y > 0;
         int has_left = sl->mb_x > 0;
 
+        {
+            int i = 0;
+            for (; i < 8; ++i) {
+                h->top_border[i] = sl->top_borders[1][sl->mb_x-1][8+i];
+            }
+            for (; i < 8+16; ++i) {
+                h->top_border[i] = sl->top_borders[1][sl->mb_x][i-8];
+            }
+            for (; i < 8+16+8; ++i) {
+                h->top_border[i] = sl->top_borders[1][sl->mb_x+1][i-8-16];
+            }
+        }
+
+
+
+        if (has_top && has_left) {
+            for (int i = 0; i < 8; ++i) {
+                h->luma_top[i] = top[-8+i];
+            }
+        }
+
         if (has_top) {
-            memcpy(h->luma_top+8, top, 16+8);
+            for (int i = 8; i < 16+8+8; ++i) {
+                h->luma_top[i] = top[i];
+            }
         }
         if (has_left) {
             for (int i = 0; i < 16; ++i) {
@@ -2649,9 +2665,18 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
             }
         }
 
-        if (has_top && has_left) {
-            memcpy(h->luma_top, top - 8, 8);
+        printf("[save macro block] luma top pointer: %p\n", (void *)top);
+        printf("[save macro block] prediction type: %d\n", h->intra16x16_pred_mode);
+        printf("[save macro block] x: %03d  y: %03d  xy: %03d\n", h->mb_x, h->_mb_y, h->mb_xy);
+
+        for (int i = 0; i < 8; ++i) {
+            printf("%02x ", h->top_border[i]);
         }
+        printf(" ");
+        for (int i = 8; i < 16+8+8; ++i) {
+            printf("%02x ", h->top_border[i]);
+        }
+        printf("\n");
 
         for (int i = 0; i < 8; ++i) {
             printf("%02x ", h->luma_top[i]);
@@ -2737,7 +2762,8 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             if (ret >= 0) {
                 if(hmb->req_mb_num == sl->mb_xy)
                 	save_coeff(h,sl);
-//                save_mb_data(h, sl);
+                if(hmb->req_mb_num == sl->mb_xy)
+                    save_mb_data(h, sl);
                 if(sl->mb_y == 17 && sl->mb_x == 21 ) {
                     int breakhere = 1;
                 }
