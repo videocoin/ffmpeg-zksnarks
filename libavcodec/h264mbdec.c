@@ -886,7 +886,6 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
         av_dict_set_int(&dst->metadata, "mb_field_decoding_flag", hmb->mb_field_decoding_flag, 0);
         av_dict_set_int(&dst->metadata, "deblocking_filter", hmb->deblocking_filter, 0);
 
-        add_metadata(dst, "top_border", hmb->top_border, sizeof(hmb->top_border));
         add_metadata(dst, "luma_top", hmb->luma_top, sizeof(hmb->luma_top));
         add_metadata(dst, "luma_left", hmb->luma_left, sizeof(hmb->luma_left));
     }
@@ -1102,31 +1101,17 @@ static int h4mb_decode_frame(AVCodecContext *avctx, void *data,
 
 void dump_macro_block(uint8_t *mb, int stride, H264SliceContext *sl)
 {
-    printf("[macro block decode] luma top pointer: %p\n", (void *)(mb-stride));
     printf("[macro block decode] prediction type: %d\n", sl->intra16x16_pred_mode);
     printf("[macro block decode] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
     if (sl->mb_y > 0) {
-        {
-            int i;
-            for (i = 0; i < 8; ++i) {
-                printf("%02x ", sl->top_borders[1][sl->mb_x-1][8+i]);
-            }
-            printf(" ");
-            for (; i < 8+16; ++i) {
-                printf("%02x ", sl->top_borders[1][sl->mb_x][i-8]);
-            }
-            for (; i < 8+16+8; ++i) {
-                printf("%02x ", sl->top_borders[1][sl->mb_x+1][i-8-16]);
-            }
-            printf("\n");
-        }
-
         // print top
         uint8_t *top = mb - stride;
-        for (int i = 0; i < 8; ++i) {
-            printf("%02x ", sl->mb_x > 0 ? top[-8 + i] : 0);
+        if (sl->mb_x > 0) {
+            for (int i = 0; i < 8; ++i) {
+                printf("%02x ", top[-8 + i]);
+            }
+            printf(" ");
         }
-        printf(" ");
         for (int x = 8; x < 16+8+8; ++x) {
             printf("%02x ", top[x]);
         }
@@ -1135,10 +1120,12 @@ void dump_macro_block(uint8_t *mb, int stride, H264SliceContext *sl)
     }
 
     for (int y = 0; y < 16; ++y) {
-        for (int i = 0; i < 7; ++i) {
-            printf("   ");
+        if (sl->mb_x > 0) {
+            for (int i = 0; i < 7; ++i) {
+                printf("   ");
+            }
+            printf("%02x  ", mb[-1]);
         }
-        printf("%02x  ", sl->mb_x > 0 ? mb[-1] : 0);
         for (int x = 0; x < 16; ++x) {
             printf("%02x ", mb[x]);
         }
