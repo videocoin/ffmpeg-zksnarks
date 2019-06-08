@@ -1177,6 +1177,24 @@ void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceCont
     }
 }
 
+void dump_coefficients(const char *header, H264SliceContext *sl)
+{
+    if (sl->intra16x16_pred_mode == 0xff)
+        return;
+    if (header) {
+        printf("[coefficients] --- %s --- [coefficients]\n", header);
+    }
+    printf("[coefficients] prediction type: %d\n", sl->intra16x16_pred_mode);
+    printf("[coefficients] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
+
+    for (int x = 0; x < 16; ++x) {
+        for (int y = 0; y < 16; ++y) {
+            printf("%05d ", sl->mb[y+x*16]);
+        }
+        printf("\n\n");
+    }
+}
+
 #define OFFSET(x) offsetof(H264Context, x)
 #define VD AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_DECODING_PARAM
 static const AVOption h264_options[] = {

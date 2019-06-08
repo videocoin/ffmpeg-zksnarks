@@ -281,6 +281,7 @@ typedef struct H264MBContext {
 
 void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl);
 void dumb_macro_block_context(const char *header, H264MBContext *h);
+void dump_coefficients(const char *header, H264SliceContext *sl);
 
 /**
  * Decode a macroblock

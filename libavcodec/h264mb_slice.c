@@ -2660,6 +2660,8 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
             }
         }
 
+        dump_coefficients("After Context Update", sl);
+
         dumb_macro_block_context("After Context Update", h);
     }
 }
