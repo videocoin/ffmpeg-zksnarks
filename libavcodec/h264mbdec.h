@@ -257,6 +257,7 @@ typedef struct H264MBContext {
     int             req_mb_num;
     int             crnt_frame_num;
     int             req_frame_num;
+    int             debug;
     int16_t         mb_data[16 * 48 * 2]; // 3 planes of 16x16 32bit coefficients
     int             mb_size;
 
@@ -278,7 +279,8 @@ typedef struct H264MBContext {
     int             deblocking_filter;
 } H264MBContext;
 
-void dump_macro_block(uint8_t *mb, int stride, H264SliceContext *sl);
+void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl);
+void dumb_macro_block_context(const char *header, H264MBContext *h);
 
 /**
  * Decode a macroblock

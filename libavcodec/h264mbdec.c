@@ -841,17 +841,6 @@ static int get_consumed_bytes(int pos, int buf_size)
     return pos;
 }
 
-static char* itoa(int val, int base){
-
-	static char buf[32] = {0};
-	int i = 30;
-
-	for(; val && i ; --i, val /= base)
-		buf[i] = "0123456789abcdef"[val % base];
-	return &buf[i+1];
-
-}
-
 static void add_metadata(AVFrame *dst, const char *key, uint8_t *data, size_t data_len)
 {
     char *data_base64 = malloc(data_len * 2);
@@ -1015,8 +1004,12 @@ static int read_options(H264MBContext *hmb, AVPacket *pkt)
         AVDictionaryEntry *ent = av_dict_get(frameDict, "req_mb", NULL, 0);
         if (ent) {
             char *value = ent->value;
-
             hmb->req_mb_num = atoi(value);
+        }
+        ent = av_dict_get(frameDict, "debug", NULL, 0);
+        if (ent) {
+            char *value = ent->value;
+            hmb->debug = atoi(value);
         }
 
         av_dict_free(&frameDict);
@@ -1100,11 +1093,48 @@ static int h4mb_decode_frame(AVCodecContext *avctx, void *data,
     return get_consumed_bytes(buf_index, buf_size);
 }
 
-void dump_macro_block(uint8_t *mb, int stride, H264SliceContext *sl)
+void dumb_macro_block_context(const char *header, H264MBContext *h)
 {
-    printf("[macro block decode] luma top pointer: %p\n", (void *)(mb-stride));
-    printf("[macro block decode] prediction type: %d\n", sl->intra16x16_pred_mode);
-    printf("[macro block decode] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
+    if (header) {
+        printf("[macro block context] --- %s --- [macro block context]\n", header);
+    }
+    printf("[macro block context] prediction type: %d\n", h->intra16x16_pred_mode);
+    printf("[macro block context] x: %03d  y: %03d  xy: %03d\n", h->mb_x, h->_mb_y, h->mb_xy);
+
+    for (int i = 0; i < 8; ++i) {
+        printf("%02x ", h->top_border[i]);
+    }
+    printf(" ");
+    for (int i = 8; i < 16+8+8; ++i) {
+        printf("%02x ", h->top_border[i]);
+    }
+    printf("\n");
+
+    for (int i = 0; i < 8; ++i) {
+        printf("%02x ", h->luma_top[i]);
+    }
+    printf(" ");
+    for (int i = 8; i < 16+8+8; ++i) {
+        printf("%02x ", h->luma_top[i]);
+    }
+    printf("\n\n");
+    for (int i = 0; i < 16; ++i) {
+        for (int k = 0; k < 7; ++k) {
+            printf("   ");
+        }
+        printf("%02x\n", h->luma_left[i]);
+    }
+}
+
+void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl)
+{
+    if (sl->intra16x16_pred_mode == 0xff)
+        return;
+    if (header) {
+        printf("[macro block] --- %s --- [macro block]\n", header);
+    }
+    printf("[macro block] prediction type: %d\n", sl->intra16x16_pred_mode);
+    printf("[macro block] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
     if (sl->mb_y > 0) {
         {
             int i;

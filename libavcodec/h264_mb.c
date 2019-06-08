@@ -706,13 +706,13 @@ static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
 
         H264MBContext *hmb = h;
 
-        if (hmb->req_mb_num == sl->mb_xy)
-            dump_macro_block(dest_y, linesize, sl);
+        if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
+            dump_macro_block("Before Prediction", dest_y, linesize, sl);
 
         h->hpc.pred16x16[sl->intra16x16_pred_mode](dest_y, linesize);
 
-        if (hmb->req_mb_num == sl->mb_xy)
-            dump_macro_block(dest_y, linesize, sl);
+        if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
+            dump_macro_block("After Prediction", dest_y, linesize, sl);
 
         if (sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX + p]]) {
             if (!transform_bypass)
