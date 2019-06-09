@@ -862,8 +862,7 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
     av_dict_set(&dst->metadata, "stereo_mode", ff_h264_sei_stereo_mode(&h->sei.frame_packing), 0);
 
     {
-		// TODO: hmb->mb_size is in bytes or as len to hmb->mb_data?
-		add_metadata(dst, "macroblock", (uint8_t *)hmb->mb_data, hmb->mb_size);
+		add_metadata(dst, "macroblock", (uint8_t *)hmb->mb_data, sizeof(hmb->mb_data));
 		add_metadata(dst, "luma_decoded", hmb->luma_decoded, sizeof(hmb->luma_decoded));
 
         av_dict_set_int(&dst->metadata, "mb_type", hmb->mb_type, 0);

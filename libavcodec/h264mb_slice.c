@@ -2574,15 +2574,6 @@ static void er_add_slice(H264SliceContext *sl,
     }
 }
 
-
-static void save_coeff(H264MBContext *h, H264SliceContext *sl)
-{
-	h->mb_size = 16 * 16 * 2 * 2;// in bytes. one plane for now 16 * 48 * 2 * 2
-	memcpy(h->mb_data, sl->mb, h->mb_size);
-	h->mb_type = h->cur_pic.mb_type[sl->mb_xy];
-	h->intra16x16_pred_mode = sl->intra16x16_pred_mode;
-}
-
 static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
 {
     const int mb_xy   = sl->mb_xy;
@@ -2621,6 +2612,8 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
         // From this initial point we have to find neighbour values
         uint8_t *luma_src  = h->cur_pic.f->data[0] + (sl->mb_x + sl->mb_y * stride) * 16;
         uint8_t *top = luma_src - stride;
+
+        memcpy(h->mb_data, sl->mb, sizeof(h->mb_data));
 
         memset(h->top_border, 0x00, sizeof(h->top_border));
         memset(h->luma_top, 0x00, sizeof(h->luma_top));
@@ -2732,12 +2725,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
 
             if (ret >= 0) {
                 if(hmb->req_mb_num == sl->mb_xy)
-                	save_coeff(h,sl);
-                if(hmb->req_mb_num == sl->mb_xy)
                     save_mb_data(h, sl);
-                if(sl->mb_y == 17 && sl->mb_x == 21 ) {
-                    int breakhere = 1;
-                }
 
                 ff_h264_hl_decode_mb(h, sl);
 //                if(hmb->req_mb_num == sl->mb_xy)
@@ -2813,9 +2801,9 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             ret = ff_h264_decode_mb_cavlc(h, sl);
 
             if (ret >= 0) {
+                if(hmb->req_mb_num == sl->mb_xy)
+                    save_mb_data(h, sl);
                 ff_h264_hl_decode_mb(h, sl);
-                if(hmb->req_mb_num == sl->mb_x + sl->mb_y)
-                	save_coeff(h,sl);
             }
             // FIXME optimal? or let mb_decode decode 16x32 ?
             if (ret >= 0 && FRAME_MBAFF(h)) {

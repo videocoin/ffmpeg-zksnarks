@@ -258,8 +258,6 @@ typedef struct H264MBContext {
     int             crnt_frame_num;
     int             req_frame_num;
     int             debug;
-    int16_t         mb_data[16 * 48 * 2]; // 3 planes of 16x16 32bit coefficients
-    int             mb_size;
 
     int             mb_type;
     int             mb_luma_dc;
@@ -267,6 +265,8 @@ typedef struct H264MBContext {
     uint8_t         luma_decoded[16 * 16]; // will be used for debug. Circuit should generate identical data to this
 
     // This data will be used to decode macroblock
+    int16_t         mb_data[16 * 16]; // luma plane
+
     uint8_t         top_border[8 + 16 + 8];
     uint8_t         luma_top[8 + 16 + 8];
     uint8_t         luma_left[16];
