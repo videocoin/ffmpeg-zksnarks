@@ -1143,14 +1143,14 @@ void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceCont
     if (sl->intra16x16_pred_mode == 0xff)
         return;
 
-    static uint8_t luma_m1_cache;
+    static uint8_t luma_m1_cache[16];
     static uint8_t luma_cache[16*16];
     static uint8_t top_border_cache[16*2];
     static uint8_t top_cache[16*2];
     static uint8_t left_cache[16];
 
     if (reset_cache) {
-        luma_m1_cache = 0;
+        memset(luma_m1_cache, 0, sizeof(luma_m1_cache));
         memset(luma_cache, 0, sizeof(luma_cache));
         memset(top_border_cache, 0, sizeof(top_border_cache));
         memset(top_cache, 0, sizeof(top_cache));
@@ -1195,7 +1195,7 @@ void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceCont
         for (int i = 0; i < 7; ++i) {
             printf("   ");
         }
-        DUMP_CHANGE("%02x  ", sl->mb_x > 0 ? mb[-1] : 0, luma_m1_cache);
+        DUMP_CHANGE("%02x  ", sl->mb_x > 0 ? mb[-1] : 0, luma_m1_cache[y]);
         for (int x = 0; x < 16; ++x) {
             DUMP_CHANGE("%02x ", mb[x], luma_cache[y + x*stride])
         }
