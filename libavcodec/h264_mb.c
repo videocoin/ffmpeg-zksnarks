@@ -715,10 +715,12 @@ static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
             dump_macro_block("After Prediction", dest_y, linesize, sl);
 
         if (sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX + p]]) {
-            if (!transform_bypass)
+            if (!transform_bypass) {
                 h->h264dsp.h264_luma_dc_dequant_idct(sl->mb + (p * 256 << pixel_shift),
                                                      sl->mb_luma_dc[p],
                                                      h->ps.pps->dequant4_coeff[p][qscale][0]);
+                dump_coefficients("After Dequant IDCT", sl);
+            }
             else {
                 static const uint8_t dc_mapping[16] = {
                      0 * 16,  1 * 16,  4 * 16,  5 * 16,

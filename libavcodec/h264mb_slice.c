@@ -2608,12 +2608,16 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
         h->mb_xy = sl->mb_xy;
         h->mb_type = h->cur_pic.mb_type[sl->mb_xy];
 
+        memcpy(h->mb_data, sl->mb, sizeof(h->mb_data));
+        memcpy(h->mb_luma_dc, sl->mb_luma_dc[0], sizeof(h->mb_luma_dc));
+
+        h->dequant_coeff = h->ps.pps->dequant4_coeff[0][sl->qscale][0];
+        h->non_zero_count_cache = sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX]];
+
         // This is the place where mb should be decoded.
         // From this initial point we have to find neighbour values
         uint8_t *luma_src  = h->cur_pic.f->data[0] + (sl->mb_x + sl->mb_y * stride) * 16;
         uint8_t *top = luma_src - stride;
-
-        memcpy(h->mb_data, sl->mb, sizeof(h->mb_data));
 
         memset(h->top_border, 0x00, sizeof(h->top_border));
         memset(h->luma_top, 0x00, sizeof(h->luma_top));
@@ -2728,8 +2732,6 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                     save_mb_data(h, sl);
 
                 ff_h264_hl_decode_mb(h, sl);
-//                if(hmb->req_mb_num == sl->mb_xy)
-//                    save_mb_data(h, sl);
             }
 
             // FIXME optimal? or let mb_decode decode 16x32 ?
