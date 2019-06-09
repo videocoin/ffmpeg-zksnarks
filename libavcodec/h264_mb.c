@@ -707,19 +707,21 @@ static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
         H264MBContext *hmb = h;
 
         if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
-            dump_macro_block("Before Prediction", dest_y, linesize, sl);
+            dump_macro_block("Before Prediction", dest_y, linesize, sl, 0);
 
         h->hpc.pred16x16[sl->intra16x16_pred_mode](dest_y, linesize);
 
         if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
-            dump_macro_block("After Prediction", dest_y, linesize, sl);
+            dump_macro_block("After Prediction", dest_y, linesize, sl, 0);
 
         if (sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX + p]]) {
             if (!transform_bypass) {
                 h->h264dsp.h264_luma_dc_dequant_idct(sl->mb + (p * 256 << pixel_shift),
                                                      sl->mb_luma_dc[p],
                                                      h->ps.pps->dequant4_coeff[p][qscale][0]);
-                dump_coefficients("After Dequant IDCT", sl);
+
+                if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
+                    dump_coefficients("After Dequant IDCT", sl, 0);
             }
             else {
                 static const uint8_t dc_mapping[16] = {

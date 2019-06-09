@@ -2657,7 +2657,8 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
             }
         }
 
-        dump_coefficients("After Context Update", sl);
+        dump_macro_block("After Context Update", luma_src, stride, sl, 1);
+        dump_coefficients("After Context Update", sl, 1);
 
         dumb_macro_block_context("After Context Update", h);
     }

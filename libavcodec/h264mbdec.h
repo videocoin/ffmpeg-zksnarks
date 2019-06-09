@@ -279,9 +279,9 @@ typedef struct H264MBContext {
     int             intra16x16_pred_mode;
 } H264MBContext;
 
-void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl);
+void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl, int reset_cache);
 void dumb_macro_block_context(const char *header, H264MBContext *h);
-void dump_coefficients(const char *header, H264SliceContext *sl);
+void dump_coefficients(const char *header, H264SliceContext *sl, int reset_cache);
 
 /**
  * Decode a macroblock
