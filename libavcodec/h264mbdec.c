@@ -1210,15 +1210,25 @@ void dump_coefficients(const char *header, H264SliceContext *sl, int reset_cache
         return;
 
     static int16_t cache[16 * 16];
+    static int16_t mb_luma_dc_cache[16];
     if (reset_cache) {
         memset(cache, 0, sizeof(cache));
+        memset(mb_luma_dc_cache, 0, sizeof(mb_luma_dc_cache));
     }
 
     if (header) {
         printf("[coefficients] --- %s --- [coefficients]\n", header);
     }
+
     printf("[coefficients] prediction type: %d\n", sl->intra16x16_pred_mode);
     printf("[coefficients] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
+    printf("[coefficients] dequant coeff: %03d\n", sl->h264->ps.pps->dequant4_coeff[0][sl->qscale][0]);
+    printf("[coefficients] mb_luma_dc:\n");
+
+    for (int x = 0; x < 16; ++x) {
+        DUMP_CHANGE("%05d ", sl->mb_luma_dc[0][x], mb_luma_dc_cache[x])
+    }
+    printf("\n\n\n");
 
     for (int x = 0; x < 16; ++x) {
         for (int y = 0; y < 16; ++y) {
