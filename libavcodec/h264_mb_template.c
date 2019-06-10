@@ -196,15 +196,8 @@ static av_noinline void FUNC(hl_decode_mb)(const H264Context *h, H264SliceContex
             }
         }
 
-        H264MBContext *hmb = h;
-        if (hmb->debug || hmb->req_mb_num == sl->mb_xy && !IS_INTRA4x4(mb_type))
-            dump_macro_block("Before IDCT", dest_y, linesize, sl, 0);
-
         hl_decode_mb_idct_luma(h, sl, mb_type, SIMPLE, transform_bypass,
                                PIXEL_SHIFT, block_offset, linesize, dest_y, 0);
-
-        if (hmb->debug || hmb->req_mb_num == sl->mb_xy && !IS_INTRA4x4(mb_type))
-            dump_macro_block("After IDCT", dest_y, linesize, sl, 0);
 
         if ((SIMPLE || !CONFIG_GRAY || !(h->flags & AV_CODEC_FLAG_GRAY)) &&
             (sl->cbp & 0x30)) {

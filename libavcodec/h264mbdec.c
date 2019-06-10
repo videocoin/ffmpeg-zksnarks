@@ -864,9 +864,9 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
     {
 		add_metadata(dst, "macroblock", (uint8_t *)hmb->mb_data, sizeof(hmb->mb_data));
 		add_metadata(dst, "mb_luma_dc", (uint8_t *)hmb->mb_luma_dc, sizeof(hmb->mb_luma_dc));
+		add_metadata(dst, "non_zero_count_cache", hmb->non_zero_count_cache, sizeof(hmb->non_zero_count_cache));
 
 		av_dict_set_int(&dst->metadata, "dequant_coeff", hmb->dequant_coeff, 0);
-		av_dict_set_int(&dst->metadata, "non_zero_count_cache", hmb->non_zero_count_cache, 0);
 
         av_dict_set_int(&dst->metadata, "mb_type", hmb->mb_type, 0);
         av_dict_set_int(&dst->metadata, "mb_x", hmb->mb_x, 0);

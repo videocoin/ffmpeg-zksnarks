@@ -2610,9 +2610,10 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
 
         memcpy(h->mb_data, sl->mb, sizeof(h->mb_data));
         memcpy(h->mb_luma_dc, sl->mb_luma_dc[0], sizeof(h->mb_luma_dc));
+        memcpy(h->non_zero_count_cache, sl->non_zero_count_cache, sizeof(sl->non_zero_count_cache));
 
         h->dequant_coeff = h->ps.pps->dequant4_coeff[0][sl->qscale][0];
-        h->non_zero_count_cache = sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX]];
+//        h->non_zero_count_cache = sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX]];
 
         // This is the place where mb should be decoded.
         // From this initial point we have to find neighbour values

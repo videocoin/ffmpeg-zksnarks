@@ -769,10 +769,17 @@ static av_always_inline void hl_decode_mb_idct_luma(const H264Context *h, H264Sl
                                                               linesize);
                 }
             } else {
+                H264MBContext *hmb = h;
+                if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
+                    dump_macro_block("Before Add IDCT", dest_y, linesize, sl, 0);
+
                 h->h264dsp.h264_idct_add16intra(dest_y, block_offset,
                                                 sl->mb + (p * 256 << pixel_shift),
                                                 linesize,
                                                 sl->non_zero_count_cache + p * 5 * 8);
+
+                if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
+                    dump_macro_block("After Add IDCT", dest_y, linesize, sl, 0);
             }
         } else if (sl->cbp & 15) {
             if (transform_bypass) {

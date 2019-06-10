@@ -267,7 +267,7 @@ typedef struct H264MBContext {
     // Data related to macroblock DC coefficients
     int16_t         mb_data[16 * 16]; // luma DC plane
     int16_t         mb_luma_dc[16];
-    int             non_zero_count_cache;
+    uint8_t         non_zero_count_cache[15 * 8];
     int             dequant_coeff;
 
     // Data related to macroblock prediction
