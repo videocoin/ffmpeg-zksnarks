@@ -625,6 +625,7 @@ static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
     void (*idct_dc_add)(uint8_t *dst, int16_t *block, int stride);
     int i;
     int qscale = p == 0 ? sl->qscale : sl->chroma_qp[p - 1];
+    H264MBContext *hmb = (H264MBContext *)h;
     block_offset += 16 * p;
     if (IS_INTRA4x4(mb_type)) {
         if (IS_8x8DCT(mb_type)) {
@@ -703,25 +704,25 @@ static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
             }
         }
     } else {
-
-        H264MBContext *hmb = h;
-
-        if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
-            dump_macro_block("Before Prediction", dest_y, linesize, sl, 0);
+        if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+            dump_luma_block("before pred16x16", dest_y, linesize, sl, 0);
 
         h->hpc.pred16x16[sl->intra16x16_pred_mode](dest_y, linesize);
 
-        if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
-            dump_macro_block("After Prediction", dest_y, linesize, sl, 0);
+        if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+            dump_luma_block("after pred16x16", dest_y, linesize, sl, 0);
 
         if (sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX + p]]) {
             if (!transform_bypass) {
+                if (hmb->debug || (hmb->debug_dct_coef && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                    dump_idct_coefficients("before h264_luma_dc_dequant_idct", sl, 0);
+
                 h->h264dsp.h264_luma_dc_dequant_idct(sl->mb + (p * 256 << pixel_shift),
                                                      sl->mb_luma_dc[p],
                                                      h->ps.pps->dequant4_coeff[p][qscale][0]);
 
-                if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
-                    dump_coefficients("After Dequant IDCT", sl, 0);
+                if (hmb->debug || (hmb->debug_dct_coef && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                    dump_idct_coefficients("after h264_luma_dc_dequant_idct", sl, 0);
             }
             else {
                 static const uint8_t dc_mapping[16] = {
@@ -749,6 +750,7 @@ static av_always_inline void hl_decode_mb_idct_luma(const H264Context *h, H264Sl
                                                     uint8_t *dest_y, int p)
 {
     void (*idct_add)(uint8_t *dst, int16_t *block, int stride);
+    H264MBContext *hmb = (H264MBContext *)h;
     int i;
     block_offset += 16 * p;
     if (!IS_INTRA4x4(mb_type)) {
@@ -769,17 +771,16 @@ static av_always_inline void hl_decode_mb_idct_luma(const H264Context *h, H264Sl
                                                               linesize);
                 }
             } else {
-                H264MBContext *hmb = h;
-                if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
-                    dump_macro_block("Before Add IDCT", dest_y, linesize, sl, 0);
+                if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                    dump_luma_block("before h264_idct_add16intra", dest_y, linesize, sl, 0);
 
                 h->h264dsp.h264_idct_add16intra(dest_y, block_offset,
                                                 sl->mb + (p * 256 << pixel_shift),
                                                 linesize,
                                                 sl->non_zero_count_cache + p * 5 * 8);
 
-                if (hmb->debug || hmb->req_mb_num == sl->mb_xy)
-                    dump_macro_block("After Add IDCT", dest_y, linesize, sl, 0);
+                if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                    dump_luma_block("after h264_idct_add16intra", dest_y, linesize, sl, 0);
             }
         } else if (sl->cbp & 15) {
             if (transform_bypass) {

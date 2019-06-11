@@ -54,6 +54,7 @@ static av_noinline void FUNC(hl_decode_mb)(const H264Context *h, H264SliceContex
     void (*idct_add)(uint8_t *dst, int16_t *block, int stride);
     const int block_h   = 16 >> h->chroma_y_shift;
     const int chroma422 = CHROMA422(h);
+    H264MBContext *hmb = (H264MBContext *)h;
 
     dest_y  = h->cur_pic.f->data[0] + ((mb_x << PIXEL_SHIFT)     + mb_y * sl->linesize)  * 16;
     dest_cb = h->cur_pic.f->data[1] +  (mb_x << PIXEL_SHIFT) * 8 + mb_y * sl->uvlinesize * block_h;
@@ -154,14 +155,13 @@ static av_noinline void FUNC(hl_decode_mb)(const H264Context *h, H264SliceContex
     } else {
         if (IS_INTRA(mb_type)) {
             if (sl->deblocking_filter) {
-                H264MBContext *hmb = h;
-                if (hmb->debug || hmb->req_mb_num == sl->mb_xy && !IS_INTRA4x4(mb_type))
-                    dump_macro_block("Before Deblocking", dest_y, linesize, sl, 0);
+                if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                    dump_luma_block("before xchg_mb_border", dest_y, linesize, sl, 0);
                 xchg_mb_border(h, sl, dest_y, dest_cb, dest_cr, linesize,
                                uvlinesize, 1, 0, SIMPLE, PIXEL_SHIFT);
 
-                if (hmb->debug || hmb->req_mb_num == sl->mb_xy && !IS_INTRA4x4(mb_type))
-                    dump_macro_block("After Deblocking", dest_y, linesize, sl, 0);
+                if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                    dump_luma_block("after xchg_mb_border", dest_y, linesize, sl, 0);
             }
 
             if (SIMPLE || !CONFIG_GRAY || !(h->flags & AV_CODEC_FLAG_GRAY)) {

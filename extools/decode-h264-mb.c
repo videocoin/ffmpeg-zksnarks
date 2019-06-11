@@ -216,7 +216,7 @@ int getMbFromStream(char *file_name, int key_frame_num, int mb_num, MB_T *pMb,  
 						// Free side data from packet
 						av_packet_free_side_data(pkt);
 
-						AVDictionaryEntry *ent = av_dict_get(frame->metadata,"macroblock", NULL, 0);
+						AVDictionaryEntry *ent = av_dict_get(frame->metadata,"mb", NULL, 0);
 						if (ent) {
 							char *macroblock = ent->value;
 							if (macroblock) {

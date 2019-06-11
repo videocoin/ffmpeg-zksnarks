@@ -258,6 +258,9 @@ typedef struct H264MBContext {
     int             crnt_frame_num;
     int             req_frame_num;
     int             debug;
+    int             debug_dct_coef;
+    int             debug_luma;
+    int             debug_context;
 
     int             mb_type;
     int             mb_x;
@@ -279,9 +282,9 @@ typedef struct H264MBContext {
     int             intra16x16_pred_mode;
 } H264MBContext;
 
-void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl, int reset_cache);
-void dumb_macro_block_context(const char *header, H264MBContext *h);
-void dump_coefficients(const char *header, H264SliceContext *sl, int reset_cache);
+void dump_luma_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl, int reset_cache);
+void dump_h264mb_context(const char *header, H264MBContext *h);
+void dump_idct_coefficients(const char *header, H264SliceContext *sl, int reset_cache);
 
 /**
  * Decode a macroblock

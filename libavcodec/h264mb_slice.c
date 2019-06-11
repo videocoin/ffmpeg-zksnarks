@@ -2574,7 +2574,7 @@ static void er_add_slice(H264SliceContext *sl,
     }
 }
 
-static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
+static void save_h264mb_context(H264MBContext *h, H264SliceContext *sl)
 {
     const int mb_xy   = sl->mb_xy;
     const int mb_type = h->cur_pic.mb_type[mb_xy];
@@ -2613,7 +2613,6 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
         memcpy(h->non_zero_count_cache, sl->non_zero_count_cache, sizeof(sl->non_zero_count_cache));
 
         h->dequant_coeff = h->ps.pps->dequant4_coeff[0][sl->qscale][0];
-//        h->non_zero_count_cache = sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX]];
 
         // This is the place where mb should be decoded.
         // From this initial point we have to find neighbour values
@@ -2658,10 +2657,14 @@ static void save_mb_data(H264MBContext *h, H264SliceContext *sl)
             }
         }
 
-        dump_macro_block("After Context Update", luma_src, stride, sl, 1);
-        dump_coefficients("After Context Update", sl, 1);
+        if (h->debug || h->debug_luma)
+            dump_luma_block("after save_h264mb_context", luma_src, stride, sl, 1);
 
-        dumb_macro_block_context("After Context Update", h);
+        if (h->debug || h->debug_dct_coef)
+            dump_idct_coefficients("after save_h264mb_context", sl, 1);
+
+        if (h->debug || h->debug_context)
+            dump_h264mb_context("after save_h264mb_context", h);
     }
 }
 
@@ -2731,7 +2734,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
 
             if (ret >= 0) {
                 if(hmb->req_mb_num == sl->mb_xy)
-                    save_mb_data(h, sl);
+                    save_h264mb_context(h, sl);
 
                 ff_h264_hl_decode_mb(h, sl);
             }
@@ -2806,7 +2809,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
 
             if (ret >= 0) {
                 if(hmb->req_mb_num == sl->mb_xy)
-                    save_mb_data(h, sl);
+                    save_h264mb_context(h, sl);
                 ff_h264_hl_decode_mb(h, sl);
             }
             // FIXME optimal? or let mb_decode decode 16x32 ?

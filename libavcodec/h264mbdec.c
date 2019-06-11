@@ -854,7 +854,7 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
 {
     AVFrame *src = srcp->f;
     int ret;
-    H264MBContext *hmb = h;
+    H264MBContext *hmb = (H264MBContext *)h;
     ret = av_frame_ref(dst, src);
     if (ret < 0)
         return ret;
@@ -862,7 +862,7 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
     av_dict_set(&dst->metadata, "stereo_mode", ff_h264_sei_stereo_mode(&h->sei.frame_packing), 0);
 
     {
-		add_metadata(dst, "macroblock", (uint8_t *)hmb->mb_data, sizeof(hmb->mb_data));
+		add_metadata(dst, "mb", (uint8_t *)hmb->mb_data, sizeof(hmb->mb_data));
 		add_metadata(dst, "mb_luma_dc", (uint8_t *)hmb->mb_luma_dc, sizeof(hmb->mb_luma_dc));
 		add_metadata(dst, "non_zero_count_cache", hmb->non_zero_count_cache, sizeof(hmb->non_zero_count_cache));
 
@@ -1095,10 +1095,10 @@ static int h4mb_decode_frame(AVCodecContext *avctx, void *data,
     return get_consumed_bytes(buf_index, buf_size);
 }
 
-void dumb_macro_block_context(const char *header, H264MBContext *h)
+void dump_h264mb_context(const char *header, H264MBContext *h)
 {
     if (header) {
-        printf("[macro block context] --- %s --- [macro block context]\n", header);
+        printf("[macro block context] --- [%s] --- [macro block context]\n", header);
     }
     printf("[macro block context] prediction type: %d\n", h->intra16x16_pred_mode);
     printf("[macro block context] x: %03d  y: %03d  xy: %03d\n", h->mb_x, h->_mb_y, h->mb_xy);
@@ -1129,20 +1129,20 @@ void dumb_macro_block_context(const char *header, H264MBContext *h)
 }
 
 #define DUMP_CHANGE(format, a, b) \
-    int changed = (a) != (b); \
+{ \
+    int changed; \
+    changed = (a) != (b); \
     if (changed) printf("\033[0;34m"); \
     printf(format, (a)); \
     if (changed) { \
         printf("\033[0m"); \
         (b) = (a); \
-    }
+    } \
+}
 
 
-void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl, int reset_cache)
+void dump_luma_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl, int reset_cache)
 {
-    if (sl->intra16x16_pred_mode == 0xff)
-        return;
-
     static uint8_t luma_m1_cache[16];
     static uint8_t luma_cache[16*16];
     static uint8_t top_border_cache[16*2];
@@ -1158,11 +1158,12 @@ void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceCont
     }
 
     if (header) {
-        printf("[macro block] --- %s --- [macro block]\n", header);
+        printf("[macro block] --- [%s] --- [macro block]\n", header);
     }
     printf("[macro block] prediction type: %d\n", sl->intra16x16_pred_mode);
     printf("[macro block] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
     if (sl->mb_y > 0) {
+        uint8_t *top;
         {
             int i;
             for (i = 0; i < 8; ++i) {
@@ -1179,7 +1180,7 @@ void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceCont
         }
 
         // print top
-        uint8_t *top = mb - stride;
+        top = mb - stride;
         for (int i = 0; i < 8; ++i) {
             DUMP_CHANGE("%02x ", sl->mb_x > 0 ? top[-8 + i] : 0, top_cache[i])
         }
@@ -1204,11 +1205,8 @@ void dump_macro_block(const char *header, uint8_t *mb, int stride, H264SliceCont
     }
 }
 
-void dump_coefficients(const char *header, H264SliceContext *sl, int reset_cache)
+void dump_idct_coefficients(const char *header, H264SliceContext *sl, int reset_cache)
 {
-    if (sl->intra16x16_pred_mode == 0xff)
-        return;
-
     static int16_t cache[16 * 16];
     static int16_t mb_luma_dc_cache[16];
     if (reset_cache) {
@@ -1217,7 +1215,7 @@ void dump_coefficients(const char *header, H264SliceContext *sl, int reset_cache
     }
 
     if (header) {
-        printf("[coefficients] --- %s --- [coefficients]\n", header);
+        printf("[coefficients] --- [%s] --- [coefficients]\n", header);
     }
 
     printf("[coefficients] prediction type: %d\n", sl->intra16x16_pred_mode);
