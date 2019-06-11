@@ -7,13 +7,24 @@ An ffmpeg application is used to retrieve macrobocks from source and transcode s
 ```
 typedef struct _MB_T
 {
-	char *mb_data; // Macroblock DCT Coefficients
-                 // 3 planes of 16x16 32bit coefficients
-	int  mb_size;
-
 	int mb_type;
-	int intra16x16_pred_mode;
-	// TODO : Add othe required params
+	int mb_x;
+	int mb_y;
+    int mb_xy;
+    int mb_width;
+
+    int16_t mb[16*16];  // Macroblock DCT Coefficients
+    int16_t mb_luma_dc[16];
+    int dequant_coeff;
+    uint8_t non_zero_count_cache[15 * 8];
+
+    // This data will be used to decode macroblock
+    uint8_t top_border[8 + 16 + 8];
+    uint8_t luma_top[8 + 16 + 8];
+    uint8_t luma_left[16];
+    int mb_field_decoding_flag;
+    int deblocking_filter;
+    int intra16x16_pred_mode;
 } MB_T;
 ```
 
@@ -67,6 +78,9 @@ The customization includes the following:
 
 ### h264mbdec.h (New file based on h264dec.h)
 ```
+/**
+ * H264MBContext
+ */
 typedef struct H264MBContext {
     const AVClass *class;
     AVCodecContext *avctx;
@@ -284,34 +298,35 @@ typedef struct H264MBContext {
     AVBufferPool *motion_val_pool;
     AVBufferPool *ref_index_pool;
     int ref2frm[MAX_SLICES][2][64];     ///< reference to frame number lists, used in the loop filter, the first 2 are for -2,-1
+#define MAX_MB_DATA_SIZE 4*1024
+    // H264MB Specific data
+    int             req_mb_num;
+    int             crnt_frame_num;
+    int             req_frame_num;
+    int             debug;
+    int             debug_dct_coef;
+    int             debug_luma;
+    int             debug_context;
+
+    int             mb_type;
+    int             mb_x;
+    int             _mb_y; // mb_y is defined already
+    int             mb_xy;
+
+    // Data related to macroblock DC coefficients
+    int16_t         mb_data[16 * 16]; // luma DC plane
+    int16_t         mb_luma_dc[16];
+    uint8_t         non_zero_count_cache[15 * 8];
+    int             dequant_coeff;
+
+    // Data related to macroblock prediction
+    uint8_t         top_border[8 + 16 + 8];
+    uint8_t         luma_top[8 + 16 + 8];
+    uint8_t         luma_left[16];
+    int             mb_field_decoding_flag;
+    int             deblocking_filter;
+    int             intra16x16_pred_mode;
 } H264MBContext;
-
-```
-### h264mbdec.c (based on h264dec.c)
-```
-AVCodec ff_h4mb_decoder = {
-    .name                  = "h4mb",
-    .long_name             = NULL_IF_CONFIG_SMALL("H.264 Macroblock decoder"),
-    .type                  = AVMEDIA_TYPE_VIDEO,
-    .id                    = AV_CODEC_ID_H4MB,
-    .priv_data_size        = sizeof(H264MBContext),
-    .init                  = h264_decode_init,
-    .close                 = h264_decode_end,
-    .decode                = h264_decode_frame,
-    .capabilities          = /*AV_CODEC_CAP_DRAW_HORIZ_BAND |*/ AV_CODEC_CAP_DR1 |
-                             AV_CODEC_CAP_DELAY | AV_CODEC_CAP_SLICE_THREADS |
-                             AV_CODEC_CAP_FRAME_THREADS,
-    .hw_configs            = (const AVCodecHWConfigInternal*[]) {
-
-                               NULL
-                           },
-    .caps_internal         = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_EXPORTS_CROPPING,
-    .flush                 = flush_dpb,
-    .init_thread_copy      = ONLY_IF_THREADS_ENABLED(decode_init_thread_copy),
-    .update_thread_context = ONLY_IF_THREADS_ENABLED(ff_h264_update_thread_context),
-    .profiles              = NULL_IF_CONFIG_SMALL(ff_h264_profiles),
-    .priv_class            = &h264mb_class,
-};
 
 
 static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
@@ -319,6 +334,51 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
 // code to return macroblock data to the application
 }
 ```
+
+H264Mb specific data:
+
+`int req_mb_num` - number of macroblock requested by application
+
+`int crnt_frame_num` - current decoding frame (not used)
+
+`int req_frame_num` - number of frame requested by application
+
+`int debug` - if `1` - enable all H264MB specific logs
+
+`int debug_dct_coef` - if `1` - enable DCT specific logs
+
+`int debug_luma` - if `1` - enable Luma specific logs
+
+`int debug_context` - if `1` - enable H264MBContext logs
+
+`int mb_type` - macroblock type
+
+`int mb_x` - "row number" (cell width 16) of macroblock in video frame
+
+`int _mb_y` - "column number" (cell width 16) of macroblock in video frame (`mb_y` is taken already)
+
+`int mb_xy` - number of macroblock (`mb_x*mb_width + mb_y`)  in video frame
+
+`int16_t mb_data[16 * 16]` - macroblock IDCT coefficients
+
+`int16_t mb_luma_dc[16]` - macroblock luma dc values
+
+`uint8_t non_zero_count_cache[15 * 8]` - cached values from CABAC step
+
+`int dequant_coeff` - dequantisation coefficient for IDCT values
+
+`uint8_t top_border[8 + 16 + 8]` - luma top border values
+
+`uint8_t luma_top[8 + 16 + 8]` - luma values of neighbouring top macroblocks 
+
+`uint8_t luma_left[16]` - luma values of neighbouring left macroblock
+
+`int mb_field_decoding_flag` - decoding flag
+
+`deblocking_filter` - deblocking filter flag
+
+`intra16x16_pred_mode` - intra16x16 prediction mode
+
 
 ```
 AVCodec ff_h4mb_decoder = {
@@ -376,24 +436,76 @@ OBJS-$(CONFIG_H4MB_DECODER)            += h264mbdec.o h264mb_cabac.o h264mb_cavl
 
 ### h264mb_slice.c
 Modifications to extract macroblock data
+```
+static void save_h264mb_context(H264MBContext *h, H264SliceContext *sl)
+{
+    // save the comtext required to extract macroblock data
+}
+```
 
-## Proof generation and withness generation applications
-### ffmpeg/extools
-Application code to extract macroblock data
+`save_h264mb_context` usage:
+```
+static int decode_slice(struct AVCodecContext *avctx, void *arg)
+{
+    ...
+    
+    H264MBContext *hmb = sl->h264;
+    
+    ...
+    
+    if(hmb->req_mb_num == sl->mb_xy)
+        save_h264mb_context(h, sl);
+    ff_h264_hl_decode_mb(h, sl);
+    
+    ...
+    
+}
+```
 
-compilation:
-SRC_PATH=<ffmpeg source location> make all
+### H264MBContext structure
+
 ```
-  Example:
-  SRC_PATH=../ make all
+                               macroblock at mb_x-1;mb_y-1             macroblock at mb_x;mb_y-1               macroblock at mb_x+1;mb_y-1
+                                    --------------------->|  |<------------------------------------------->|  |<----------------------
+top_border =>                       d8 d6 d5 d2 d7 d4 d1 d5  da d8 d3 e0 d2 d5 d3 e0 d6 d5 d3 d6 df d9 dd e1  d7 d6 d6 d7 de dd db dd 
+luma_top   =>                       d8 d6 d5 d2 d7 d4 d1 d5  dc d3 de d5 d9 db db d8 da d8 d3 e0 d2 d5 d3 e0  d6 d5 d3 d6 df d9 dd e1 
+                                        
+                                                         d5  d6 e2 d5 d6 d3 e1 db dc d5 d2 d7 d8 d1 d4 cf d0                            
+                                                         cf  d6 d7 d7 d3 d5 d6 d7 d8 d2 d6 d9 d5 d7 d6 d3 d4                             
+                                                         d0  dd c9 d9 d8 d6 d5 d4 d3 d7 cf d8 d8 da d7 ca d1                            
+                                                         d3  d4 db d8 dc d4 df d5 d3 d0 db d2 d9 dc cd da d9 
+                                                         d3  da c9 ce d8 d8 d9 d0 d3 d7 d7 d7 d7 db d7 d4 d7 
+                                                         d7  d9 d4 d6 d8 d5 d8 d6 d6 d7 d7 d7 d7 da d5 d6 d7 
+                                                         d2  d6 d4 d2 d7 d6 da dc d5 d7 d7 d7 d7 d9 d2 d9 d8 
+                                                         d1  d4 de d9 d6 db dc dd d0 d7 d7 d7 d7 d9 d0 db d9 
+                                                         dd  d2 d7 d0 d5 d3 df db d8 d4 d4 da d6 d6 ce d5 d4 
+                                                         d0  d5 d7 cc db d6 dd d9 d5 d6 da d9 d1 cd d3 d7 d7 
+                                                         d6  db d2 d5 d9 d5 d5 d9 d6 db cf d4 d4 d9 d5 dd d3 
+                                                         ce  d7 d8 d7 d8 d0 cf db db d8 e0 d6 e2 d0 cd d2 d6 
+                                                         da  de d2 d7 d2 d9 d7 d5 dc dd db d9 cd d2 d3 db d9 
+                                                         d3  d8 d6 d4 d9 d0 d6 d3 dd d7 d7 d9 d3 d5 d4 d5 d3 
+                                                         d2  db dc d6 de db d7 de d6 d7 d1 cf db e3 d5 d8 d9 
+                                                         dd  da d5 d0 d2 d2 d5 db d7 d3 d7 d1 d3 d3 e1 d5 d8                            
+                                                         
+                                                         ^
+                                                     luma_left
 ```
-  
-### Run the application as follows:
-On the Storage-worker
-```
-./genwitness <file1> <file2>
-```
-On the Transocde-worker
-```
-./genproof <file1> <file2>
-```
+
+### How macroblock decoding works
+
+Flow:
+
+1. Deblocking (if enabled)
+2. Macroblock luma prediction
+3. Dequantity IDCT coefficients
+4. Apply IDCT coefficients to predicted luma values
+
+ 
+`top_border` and `luma_top` are used for deblocking filter if `deblocking_filter` is enabled.
+
+`luma_top`, `luma_left`, are used for macroblock prediction based on `intra16x16_pred_mode` mode.
+
+`dequant_coeff` and `mb_luma_dc` are used to dequantify `mb_data` (IDCT coefficients)
+ 
+`mb_data` and predicted luma values are combined together to fully decode macroblock.
+
