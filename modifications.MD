@@ -7,9 +7,9 @@ An ffmpeg application is used to retrieve macrobocks from source and transcode s
 ```
 typedef struct _MB_T
 {
-	int mb_type;
-	int mb_x;
-	int mb_y;
+    int mb_type;
+    int mb_x;
+    int mb_y;
     int mb_xy;
     int mb_width;
 
