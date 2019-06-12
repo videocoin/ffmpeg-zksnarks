@@ -41,14 +41,14 @@
 #include "decode-h264-mb.h"
 
 
-void hexDump (unsigned char *pData, int n);
+void hex_dump (unsigned char *pData, int n);
 static char* itoa(int val, int base);
 int getParam(AVFrame *frame, char *key);
 
 
 
 
-void hexDump (unsigned char *pData, int n)
+void hex_dump (unsigned char *pData, int n)
 {
 	for (int i=0; i< n; i++) {
 		printf("%02x ", pData[i]);
@@ -81,7 +81,7 @@ int getParam(AVFrame *frame, char *key)
 	return -1;
 }
 
-int getMbFromStream(char *file_name, int key_frame_num, int mb_num, MB_T *pMb,  unsigned char *pRawY)
+int get_mb_from_stream(char *file_name, int key_frame_num, int mb_num, MB_T *pMb,  unsigned char *pRawY)
 {
 
 	AVFormatContext* fmt_ctx;
@@ -174,13 +174,13 @@ int getMbFromStream(char *file_name, int key_frame_num, int mb_num, MB_T *pMb,  
 		// decode packet and other stuff
 		printf("Stream=%d frame=%d idr_frame=%d size=0x%x\n", pkt->stream_index,
 				frame_count, idr_frame, pkt->size);
-		hexDump(pkt->data, 16);
+		hex_dump(pkt->data, 16);
 		if (pkt && pkt->size && ffmpeg_videoStreamIndex == pkt->stream_index) {
 			if (h264bsfc) {
 				av_bitstream_filter_filter(h264bsfc,
 						fmt_ctx->streams[ffmpeg_videoStreamIndex]->codec, NULL,
 						&pkt->data, &pkt->size, pkt->data, pkt->size, 0);
-				hexDump(pkt->data, 16);
+				hex_dump(pkt->data, 16);
 				//read_debug_nal_unit(h, pkt->data + 4, pkt->size - 4);
 				uint8_t* p = pkt->data;
 				size_t sz = pkt->size;
@@ -224,7 +224,7 @@ int getMbFromStream(char *file_name, int key_frame_num, int mb_num, MB_T *pMb,  
 								printf("macroblock=");
 
 								av_base64_decode(pMb->mb_data, macroblock, pMb->mb_size);
-								hexDump(pMb->mb_data, 16*16*4);
+								hex_dump(pMb->mb_data, 16*16*4);
 
 								if(pRawY){
 									int mb_locn_x = 0;
@@ -236,7 +236,7 @@ int getMbFromStream(char *file_name, int key_frame_num, int mb_num, MB_T *pMb,  
 											*pDst++ = *pSrc++;
 										}
 									}
-									hexDump(pRawY, 256);
+									hex_dump(pRawY, 256);
 								}
 							}
 						}

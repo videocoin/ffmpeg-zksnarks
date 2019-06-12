@@ -73,13 +73,13 @@ int main(int argc, char **argv)
 
 	// Generate hash of hashes from input stream and transcoded stream
 	//      and pick random keyframe and macroblock number
-	getRandomOffsets(ARG_VIDEO_PATH1, ARG_VIDEO_PATH2, &frame_offset, 10, &mb_offset, 1);
+	get_random_offsets(ARG_VIDEO_PATH1, ARG_VIDEO_PATH2, &frame_offset, 10, &mb_offset, 1);
 	printf("frame_offset=%d macroblock_offset=%d\n",frame_offset, mb_offset);
 
 	memset(srcRawY, 0x00, 256);
 	memset(transRawY, 0x00, 256);
-	getMbFromStream(ARG_VIDEO_PATH1, 1, 10, &mbSrc, srcRawY);
-	getMbFromStream(ARG_VIDEO_PATH2, 1, 10, &mbTrans, transRawY);
+	get_mb_from_stream(ARG_VIDEO_PATH1, 1, 10, &mbSrc, srcRawY);
+	get_mb_from_stream(ARG_VIDEO_PATH2, 1, 10, &mbTrans, transRawY);
 	if(mbSrc.mb_data) free(mbSrc.mb_data);
 	if(mbTrans.mb_data) free(mbTrans.mb_data);
 

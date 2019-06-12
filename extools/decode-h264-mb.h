@@ -14,6 +14,6 @@ typedef struct _MB_T
 } MB_T;
 
 
-int getMbFromStream(char *file_name, int key_frame_num, int mb_num, MB_T *pMb, unsigned char *pRawY);
+int get_mb_from_stream(char *file_name, int key_frame_num, int mb_num, MB_T *pMb, unsigned char *pRawY);
 
 #endif /* EXTOOLS_DECODE_H264_MB_H_ */

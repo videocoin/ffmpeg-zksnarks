@@ -996,25 +996,30 @@ static int send_next_delayed_frame(H264Context *h, AVFrame *dst_frame,
     return buf_index;
 }
 
+static int get_option_int(AVDictionary *frame_dict, const char *key, int default_value)
+{
+    AVDictionaryEntry *ent = av_dict_get(frame_dict, key, NULL, 0);
+    if (ent) {
+        char *value = ent->value;
+        return atoi(value);
+    }
+    return default_value;
+}
+
 static int read_options(H264MBContext *hmb, AVPacket *pkt)
 {
     int sideDataSize;
     char *sideData = av_packet_get_side_data(pkt, AV_PKT_DATA_STRINGS_METADATA, &sideDataSize);
-    AVDictionary *frameDict = NULL;
-    if (sideData && av_packet_unpack_dictionary(sideData, sideDataSize, &frameDict) == 0) {
+    AVDictionary *frame_dict = NULL;
+    if (sideData && av_packet_unpack_dictionary(sideData, sideDataSize, &frame_dict) == 0) {
 
-        AVDictionaryEntry *ent = av_dict_get(frameDict, "req_mb", NULL, 0);
-        if (ent) {
-            char *value = ent->value;
-            hmb->req_mb_num = atoi(value);
-        }
-        ent = av_dict_get(frameDict, "debug", NULL, 0);
-        if (ent) {
-            char *value = ent->value;
-            hmb->debug = atoi(value);
-        }
+        hmb->req_mb_num = get_option_int(frame_dict, "req_mb", -1);
+        hmb->debug = get_option_int(frame_dict, "debug", 0);
+        hmb->debug_luma = get_option_int(frame_dict, "debug_luma", 0);
+        hmb->debug_dct_coef = get_option_int(frame_dict, "debug_dct_coef", 0);
+        hmb->debug_context = get_option_int(frame_dict, "debug_context", 0);
 
-        av_dict_free(&frameDict);
+        av_dict_free(&frame_dict);
     }
 
     return 0;
