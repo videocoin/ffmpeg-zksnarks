@@ -872,6 +872,7 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
         av_dict_set_int(&dst->metadata, "mb_x", hmb->mb_x, 0);
         av_dict_set_int(&dst->metadata, "mb_y", hmb->_mb_y, 0);
         av_dict_set_int(&dst->metadata, "mb_width", hmb->mb_width, 0);
+        av_dict_set_int(&dst->metadata, "mb_height", hmb->mb_height, 0);
         av_dict_set_int(&dst->metadata, "mb_xy", hmb->mb_xy, 0);
         av_dict_set_int(&dst->metadata, "intra16x16_pred_mode", hmb->intra16x16_pred_mode, 0);
         av_dict_set_int(&dst->metadata, "mb_field_decoding_flag", hmb->mb_field_decoding_flag, 0);

@@ -2611,7 +2611,7 @@ static void save_h264mb_context(H264MBContext *h, H264SliceContext *sl)
     }
 
     // INTRA 16x16 mode
-    if (IS_INTRA(mb_type)) {
+    if (IS_INTRA16x16(mb_type)) {
         ptrdiff_t stride = sl->linesize;
 
         h->intra16x16_pred_mode = sl->intra16x16_pred_mode;
