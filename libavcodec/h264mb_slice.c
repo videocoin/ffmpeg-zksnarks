@@ -2574,6 +2574,20 @@ static void er_add_slice(H264SliceContext *sl,
     }
 }
 
+static void save_decoded_luma(H264MBContext *h, H264SliceContext *sl)
+{
+    int y;
+    ptrdiff_t stride = sl->linesize;
+    uint8_t * luma_src = h->cur_pic.f->data[0] + (h->mb_x + h->_mb_y * stride) * 16;
+    uint8_t * luma_dst = h->luma_decoded;
+
+    for (y = 0; y < 16; ++y) {
+        memcpy(luma_dst, luma_src, 16);
+        luma_dst += 16;
+        luma_src += stride;
+    }
+}
+
 static void save_h264mb_context(H264MBContext *h, H264SliceContext *sl)
 {
     const int mb_xy   = sl->mb_xy;
@@ -2737,6 +2751,8 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                     save_h264mb_context(h, sl);
 
                 ff_h264_hl_decode_mb(h, sl);
+                if (hmb->req_mb_num == sl->mb_xy)
+                    save_decoded_luma(h, sl);
             }
 
             // FIXME optimal? or let mb_decode decode 16x32 ?
@@ -2745,8 +2761,14 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
 
                 ret = ff_h264mb_decode_mb_cabac((H264MBContext *)h, sl);
 
-                if (ret >= 0)
+                if (ret >= 0) {
+                    if(hmb->req_mb_num == sl->mb_xy)
+                        save_h264mb_context(h, sl);
+
                     ff_h264_hl_decode_mb(h, sl);
+                    if (hmb->req_mb_num == sl->mb_xy)
+                        save_decoded_luma(h, sl);
+                }
                 sl->mb_y--;
             }
             eos = get_cabac_terminate(&sl->cabac);
@@ -2810,15 +2832,24 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             if (ret >= 0) {
                 if(hmb->req_mb_num == sl->mb_xy)
                     save_h264mb_context(h, sl);
+
                 ff_h264_hl_decode_mb(h, sl);
+                if (hmb->req_mb_num == sl->mb_xy)
+                    save_decoded_luma(h, sl);
             }
             // FIXME optimal? or let mb_decode decode 16x32 ?
             if (ret >= 0 && FRAME_MBAFF(h)) {
                 sl->mb_y++;
                 ret = ff_h264_decode_mb_cavlc(h, sl);
 
-                if (ret >= 0)
+                if (ret >= 0) {
+                    if(hmb->req_mb_num == sl->mb_xy)
+                        save_h264mb_context(h, sl);
+
                     ff_h264_hl_decode_mb(h, sl);
+                    if (hmb->req_mb_num == sl->mb_xy)
+                        save_decoded_luma(h, sl);
+                }
                 sl->mb_y--;
             }
 

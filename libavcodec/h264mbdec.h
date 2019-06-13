@@ -267,6 +267,8 @@ typedef struct H264MBContext {
     int             _mb_y; // mb_y is defined already
     int             mb_xy;
 
+    uint8_t         luma_decoded[16*16];
+
     // Data related to macroblock DC coefficients
     int16_t         mb_data[16 * 16]; // luma DC plane
     int16_t         mb_luma_dc[16];

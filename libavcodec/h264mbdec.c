@@ -880,6 +880,7 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
         add_metadata(dst, "top_border", hmb->top_border, sizeof(hmb->top_border));
         add_metadata(dst, "luma_top", hmb->luma_top, sizeof(hmb->luma_top));
         add_metadata(dst, "luma_left", hmb->luma_left, sizeof(hmb->luma_left));
+        add_metadata(dst, "luma_decoded", hmb->luma_decoded, sizeof(hmb->luma_decoded));
     }
 
     hmb->crnt_frame_num++;
