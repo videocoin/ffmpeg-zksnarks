@@ -313,6 +313,8 @@ typedef struct H264MBContext {
     int             _mb_y; // mb_y is defined already
     int             mb_xy;
 
+    uint8_t         luma_decoded[16*16];
+
     // Data related to macroblock DC coefficients
     int16_t         mb_data[16 * 16]; // luma DC plane
     int16_t         mb_luma_dc[16];
@@ -358,6 +360,8 @@ H264Mb specific data:
 `int _mb_y` - "column number" (cell width 16) of macroblock in video frame (`mb_y` is taken already)
 
 `int mb_xy` - number of macroblock (`mb_x*mb_width + mb_y`)  in video frame
+
+`uint8_t luma_decoded[16 * 16]` - macroblock luma values decoded by codec
 
 `int16_t mb_data[16 * 16]` - macroblock IDCT coefficients
 
