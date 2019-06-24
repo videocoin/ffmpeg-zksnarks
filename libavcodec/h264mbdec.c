@@ -405,8 +405,11 @@ static av_cold int h4mb_decode_init(AVCodecContext *avctx)
     ret = h264_init_context(avctx, h);
     if (ret < 0)
         return ret;
-    hmb->crnt_frame_num = 0;
-    hmb->req_frame_num = 0;
+    hmb->debug = 0;
+    hmb->debug_context = 0;
+    hmb->debug_dct_coef = 0;
+    hmb->debug_luma = 0;
+    hmb->req_frame_num = -1;
     hmb->req_mb_num = -1;
     ret = ff_thread_once(&h264_vlc_init, ff_h264_decode_init_vlc);
     if (ret != 0) {
@@ -884,7 +887,6 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
         add_metadata(dst, "luma_decoded", hmb->luma_decoded, sizeof(hmb->luma_decoded));
     }
 
-    hmb->crnt_frame_num++;
     if (srcp->sei_recovery_frame_cnt == 0)
         dst->key_frame = 1;
 
@@ -1016,6 +1018,7 @@ static int read_options(H264MBContext *hmb, AVPacket *pkt)
     if (sideData && av_packet_unpack_dictionary(sideData, sideDataSize, &frame_dict) == 0) {
 
         hmb->req_mb_num = get_option_int(frame_dict, "req_mb", -1);
+        hmb->req_frame_num = get_option_int(frame_dict, "req_frame", -1);
         hmb->debug = get_option_int(frame_dict, "debug", 0);
         hmb->debug_luma = get_option_int(frame_dict, "debug_luma", 0);
         hmb->debug_dct_coef = get_option_int(frame_dict, "debug_dct_coef", 0);

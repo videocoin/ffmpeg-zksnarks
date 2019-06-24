@@ -255,7 +255,6 @@ typedef struct H264MBContext {
 #define MAX_MB_DATA_SIZE 4*1024
     // H264MB Specific data
     int             req_mb_num;
-    int             crnt_frame_num;
     int             req_frame_num;
     int             debug;
     int             debug_dct_coef;
