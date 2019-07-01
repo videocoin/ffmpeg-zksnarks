@@ -2592,7 +2592,8 @@ static void save_decoded_luma(H264MBContext *h, H264SliceContext *sl, int force)
             luma_src += stride;
         }
 
-        dump_luma_block("save_decoded_luma", h->luma_decoded, 16, sl, 0);
+        if (h->debug || h->debug_luma)
+            dump_luma_block("save_decoded_luma", h->luma_decoded, 16, sl, 0);
     }
 }
 
