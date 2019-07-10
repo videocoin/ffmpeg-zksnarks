@@ -303,9 +303,6 @@ typedef struct H264MBContext {
     int             req_mb_num;
     int             req_frame_num;
     int             debug;
-    int             debug_dct_coef;
-    int             debug_luma;
-    int             debug_context;
 
     int             mb_type;
     int             mb_x;
@@ -343,12 +340,6 @@ H264Mb specific data:
 `int req_frame_num` - number of frame requested by application
 
 `int debug` - if `1` - enable all H264MB specific logs
-
-`int debug_dct_coef` - if `1` - enable DCT specific logs
-
-`int debug_luma` - if `1` - enable Luma specific logs
-
-`int debug_context` - if `1` - enable H264MBContext logs
 
 `int mb_type` - macroblock type
 

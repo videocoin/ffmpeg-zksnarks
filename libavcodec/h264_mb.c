@@ -704,24 +704,24 @@ static av_always_inline void hl_decode_mb_predict_luma(const H264Context *h,
             }
         }
     } else {
-        if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+        if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_LUMA) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
             dump_luma_block("before pred16x16", dest_y, linesize, sl, 0);
 
         h->hpc.pred16x16[sl->intra16x16_pred_mode](dest_y, linesize);
 
-        if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+        if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_LUMA) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
             dump_luma_block("after pred16x16", dest_y, linesize, sl, 0);
 
         if (sl->non_zero_count_cache[scan8[LUMA_DC_BLOCK_INDEX + p]]) {
             if (!transform_bypass) {
-                if (hmb->debug || (hmb->debug_dct_coef && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_DCT_COEF) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
                     dump_idct_coefficients("before h264_luma_dc_dequant_idct", sl, 0);
 
                 h->h264dsp.h264_luma_dc_dequant_idct(sl->mb + (p * 256 << pixel_shift),
                                                      sl->mb_luma_dc[p],
                                                      h->ps.pps->dequant4_coeff[p][qscale][0]);
 
-                if (hmb->debug || (hmb->debug_dct_coef && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_DCT_COEF) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
                     dump_idct_coefficients("after h264_luma_dc_dequant_idct", sl, 0);
             }
             else {
@@ -771,10 +771,10 @@ static av_always_inline void hl_decode_mb_idct_luma(const H264Context *h, H264Sl
                                                               linesize);
                 }
             } else {
-                if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_LUMA) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
                     dump_luma_block("before h264_idct_add16intra", dest_y, linesize, sl, 0);
 
-                if (hmb->debug || (hmb->debug_dct_coef && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_DCT_COEF) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
                     dump_idct_coefficients("before h264_idct_add16intra", sl, 0);
 
                 h->h264dsp.h264_idct_add16intra(dest_y, block_offset,
@@ -782,10 +782,10 @@ static av_always_inline void hl_decode_mb_idct_luma(const H264Context *h, H264Sl
                                                 linesize,
                                                 sl->non_zero_count_cache + p * 5 * 8);
 
-                if (hmb->debug || (hmb->debug_luma && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_LUMA) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
                     dump_luma_block("after h264_idct_add16intra", dest_y, linesize, sl, 0);
 
-                if (hmb->debug || (hmb->debug_dct_coef && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type)))
+                if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_DCT_COEF) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
                     dump_idct_coefficients("after h264_idct_add16intra", sl, 0);
             }
         } else if (sl->cbp & 15) {

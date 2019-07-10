@@ -2574,12 +2574,12 @@ static void er_add_slice(H264SliceContext *sl,
     }
 }
 
-static void save_decoded_luma(H264MBContext *h, H264SliceContext *sl, int force)
+static void save_decoded_luma(H264MBContext *h, H264SliceContext *sl)
 {
     const int mb_xy   = sl->mb_xy;
     const int mb_type = h->cur_pic.mb_type[mb_xy];
 
-    if (force || IS_INTRA16x16(mb_type)) {
+    if (IS_INTRA16x16(mb_type)) {
 
         int y;
         ptrdiff_t stride = sl->linesize;
@@ -2592,7 +2592,7 @@ static void save_decoded_luma(H264MBContext *h, H264SliceContext *sl, int force)
             luma_src += stride;
         }
 
-        if (h->debug || h->debug_luma)
+        if (IS_H264MB_DEBUG(h, H264MB_DEBUG_LUMA))
             dump_luma_block("save_decoded_luma", h->luma_decoded, 16, sl, 0);
     }
 }
@@ -2680,13 +2680,13 @@ static void save_h264mb_context(H264MBContext *h, H264SliceContext *sl)
             }
         }
 
-        if (h->debug || h->debug_luma)
+        if (IS_H264MB_DEBUG(h, H264MB_DEBUG_LUMA))
             dump_luma_block("after save_h264mb_context", luma_src, stride, sl, 1);
 
-        if (h->debug || h->debug_dct_coef)
+        if (IS_H264MB_DEBUG(h, H264MB_DEBUG_DCT_COEF))
             dump_idct_coefficients("after save_h264mb_context", sl, 1);
 
-        if (h->debug || h->debug_context)
+        if (IS_H264MB_DEBUG(h, H264MB_DEBUG_CONTEXT))
             dump_h264mb_context("after save_h264mb_context", h);
     }
 }
@@ -2759,10 +2759,12 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                 if(hmb->req_mb_num == sl->mb_xy)
                     save_h264mb_context(h, sl);
 
+                if (IS_H264MB_SEARCH(hmb) && IS_INTRA16x16(h->cur_pic.mb_type[sl->mb_xy]))
+                    store_mb_pred_type(h, sl->mb_xy);
+
                 ff_h264_hl_decode_mb(h, sl);
                 if (hmb->req_mb_num == sl->mb_xy) {
-                    int force = sl->frame_num == hmb->req_frame_num;
-                    save_decoded_luma(h, sl, force);
+                    save_decoded_luma(h, sl);
                 }
 
             }
@@ -2777,10 +2779,12 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                     if(hmb->req_mb_num == sl->mb_xy)
                         save_h264mb_context(h, sl);
 
+                    if (IS_H264MB_SEARCH(hmb) && IS_INTRA16x16(h->cur_pic.mb_type[sl->mb_xy]))
+                        store_mb_pred_type(h, sl->mb_xy);
+
                     ff_h264_hl_decode_mb(h, sl);
                     if (hmb->req_mb_num == sl->mb_xy) {
-                        int force = sl->frame_num == hmb->req_frame_num;
-                        save_decoded_luma(h, sl, force);
+                        save_decoded_luma(h, sl);
                     }
                 }
                 sl->mb_y--;
@@ -2847,10 +2851,12 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                 if(hmb->req_mb_num == sl->mb_xy)
                     save_h264mb_context(h, sl);
 
+                if (IS_H264MB_SEARCH(hmb) && IS_INTRA16x16(h->cur_pic.mb_type[sl->mb_xy]))
+                    store_mb_pred_type(h, sl->mb_xy);
+
                 ff_h264_hl_decode_mb(h, sl);
                 if (hmb->req_mb_num == sl->mb_xy) {
-                    int force = sl->frame_num == hmb->req_frame_num;
-                    save_decoded_luma(h, sl, force);
+                    save_decoded_luma(h, sl);
                 }
             }
             // FIXME optimal? or let mb_decode decode 16x32 ?
@@ -2862,10 +2868,12 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                     if(hmb->req_mb_num == sl->mb_xy)
                         save_h264mb_context(h, sl);
 
+                    if (IS_H264MB_SEARCH(hmb) && IS_INTRA16x16(h->cur_pic.mb_type[sl->mb_xy]))
+                        store_mb_pred_type(h, sl->mb_xy);
+
                     ff_h264_hl_decode_mb(h, sl);
                     if (hmb->req_mb_num == sl->mb_xy) {
-                        int force = sl->frame_num == hmb->req_frame_num;
-                        save_decoded_luma(h, sl, force);
+                        save_decoded_luma(h, sl);
                     }
                 }
                 sl->mb_y--;

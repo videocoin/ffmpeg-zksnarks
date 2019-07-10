@@ -255,11 +255,11 @@ typedef struct H264MBContext {
 #define MAX_MB_DATA_SIZE 4*1024
     // H264MB Specific data
     int             req_mb_num;
-    int             req_frame_num;
+    int             search_mb;
+    int             search_mb_result_limit;
+    int             search_mb_result_index;
+    int             *search_mb_result;
     int             debug;
-    int             debug_dct_coef;
-    int             debug_luma;
-    int             debug_context;
 
     int             mb_type;
     int             mb_x;
@@ -282,6 +282,19 @@ typedef struct H264MBContext {
     int             deblocking_filter;
     int             intra16x16_pred_mode;
 } H264MBContext;
+
+#define H264MB_DEBUG_LUMA           (1 << 0)
+#define H264MB_DEBUG_DCT_COEF       (1 << 1)
+#define H264MB_DEBUG_CONTEXT        (1 << 2)
+#define H264MB_DEBUG_ALL            (H264MB_DEBUG_LUMA | H264MB_DEBUG_DCT_COEF | H264MB_DEBUG_CONTEXT)
+
+#define IS_H264MB_DEBUG(context, flag) (((context)->debug & (flag)) != 0)
+
+#define H264MB_SEARCH_LIMIT     100
+
+#define IS_H264MB_SEARCH(context) ((context)->search_mb == 1)
+
+void store_mb_pred_type(H264MBContext *h, int mb_xy);
 
 void dump_luma_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl, int reset_cache);
 void dump_h264mb_context(const char *header, H264MBContext *h);
