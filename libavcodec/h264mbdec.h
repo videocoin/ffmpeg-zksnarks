@@ -296,7 +296,8 @@ typedef struct H264MBContext {
 
 void store_mb_pred_type(H264MBContext *h, int mb_xy);
 
-void dump_luma_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl, int reset_cache);
+void dump_luma_block(const char *header, H264SliceContext *sl, int reset_cache);
+void dump_luma_block2(const char *header, uint8_t *mb, int stride, int reset_cache);
 void dump_h264mb_context(const char *header, H264MBContext *h);
 void dump_idct_coefficients(const char *header, H264SliceContext *sl, int reset_cache);
 

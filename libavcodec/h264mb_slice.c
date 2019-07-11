@@ -2587,13 +2587,16 @@ static void save_decoded_luma(H264MBContext *h, H264SliceContext *sl)
         uint8_t * luma_dst = h->luma_decoded;
 
         for (y = 0; y < 16; ++y) {
+
+            printf("Macroblock %02d row starts from %p\n", y, luma_src);
+
             memcpy(luma_dst, luma_src, 16);
             luma_dst += 16;
             luma_src += stride;
         }
 
         if (IS_H264MB_DEBUG(h, H264MB_DEBUG_LUMA))
-            dump_luma_block("save_decoded_luma", h->luma_decoded, 16, sl, 0);
+            dump_luma_block2("save_decoded_luma", h->luma_decoded, 16, 0);
     }
 }
 
@@ -2681,7 +2684,7 @@ static void save_h264mb_context(H264MBContext *h, H264SliceContext *sl)
         }
 
         if (IS_H264MB_DEBUG(h, H264MB_DEBUG_LUMA))
-            dump_luma_block("after save_h264mb_context", luma_src, stride, sl, 1);
+            dump_luma_block("after save_h264mb_context", sl, 1);
 
         if (IS_H264MB_DEBUG(h, H264MB_DEBUG_DCT_COEF))
             dump_idct_coefficients("after save_h264mb_context", sl, 1);

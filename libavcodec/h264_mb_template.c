@@ -156,12 +156,12 @@ static av_noinline void FUNC(hl_decode_mb)(const H264Context *h, H264SliceContex
         if (IS_INTRA(mb_type)) {
             if (sl->deblocking_filter) {
                 if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_LUMA) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
-                    dump_luma_block("before xchg_mb_border", dest_y, linesize, sl, 0);
+                    dump_luma_block("before xchg_mb_border", sl, 0);
                 xchg_mb_border(h, sl, dest_y, dest_cb, dest_cr, linesize,
                                uvlinesize, 1, 0, SIMPLE, PIXEL_SHIFT);
 
                 if (IS_H264MB_DEBUG(hmb, H264MB_DEBUG_LUMA) && hmb->req_mb_num == sl->mb_xy && IS_INTRA16x16(mb_type))
-                    dump_luma_block("after xchg_mb_border", dest_y, linesize, sl, 0);
+                    dump_luma_block("after xchg_mb_border", sl, 0);
             }
 
             if (SIMPLE || !CONFIG_GRAY || !(h->flags & AV_CODEC_FLAG_GRAY)) {

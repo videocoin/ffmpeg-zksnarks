@@ -1162,13 +1162,16 @@ void dump_h264mb_context(const char *header, H264MBContext *h)
 }
 
 
-void dump_luma_block(const char *header, uint8_t *mb, int stride, H264SliceContext *sl, int reset_cache)
+void dump_luma_block(const char *header, H264SliceContext *sl, int reset_cache)
 {
+    uint8_t *mb = sl->h264->cur_pic_ptr->f->data[0] + (sl->mb_x + sl->mb_y * sl->linesize)  * 16;
+
     static uint8_t luma_m1_cache[16];
     static uint8_t luma_cache[16*16];
     static uint8_t top_border_cache[16*2];
     static uint8_t top_cache[16*2];
     static uint8_t left_cache[16];
+    static uint8_t *(address_cache[16]);
 
     if (reset_cache) {
         memset(luma_m1_cache, 0, sizeof(luma_m1_cache));
@@ -1176,13 +1179,14 @@ void dump_luma_block(const char *header, uint8_t *mb, int stride, H264SliceConte
         memset(top_border_cache, 0, sizeof(top_border_cache));
         memset(top_cache, 0, sizeof(top_cache));
         memset(left_cache, 0, sizeof(left_cache));
+        memset(address_cache, 0, sizeof(address_cache));
     }
 
     if (header) {
-        printf("[macro block] --- [%s] --- [macro block]\n", header);
+        printf("[ffmpeg] --- [%s] --- [ffmpeg]\n", header);
     }
-    printf("[macro block] prediction type: %d\n", sl->intra16x16_pred_mode);
-    printf("[macro block] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
+    printf("[ffmpeg] prediction type: %d\n", sl->intra16x16_pred_mode);
+    printf("[ffmpeg] x: %03d  y: %03d  xy: %03d\n", sl->mb_x, sl->mb_y, sl->mb_xy);
     if (sl->mb_y > 0) {
         uint8_t *top;
         {
@@ -1201,7 +1205,7 @@ void dump_luma_block(const char *header, uint8_t *mb, int stride, H264SliceConte
         }
 
         // print top
-        top = mb - stride;
+        top = mb - sl->linesize;
         for (int i = 0; i < 8; ++i) {
             DUMP_CHANGE("%02x ", sl->mb_x > 0 ? top[-8 + i] : 0, top_cache[i])
         }
@@ -1218,6 +1222,27 @@ void dump_luma_block(const char *header, uint8_t *mb, int stride, H264SliceConte
             printf("   ");
         }
         DUMP_CHANGE("%02x  ", sl->mb_x > 0 ? mb[-1] : 0, luma_m1_cache[y]);
+        for (int x = 0; x < 16; ++x) {
+            DUMP_CHANGE("%02x ", mb[x], luma_cache[y + x*sl->linesize])
+        }
+        DUMP_CHANGE("%20p\n", mb, address_cache[y]);
+        mb += sl->linesize;
+    }
+}
+
+void dump_luma_block2(const char *header, uint8_t *mb, int stride, int reset_cache)
+{
+    static uint8_t luma_cache[16*16];
+
+    if (reset_cache) {
+        memset(luma_cache, 0, sizeof(luma_cache));
+    }
+
+    if (header) {
+        printf("[ffmpeg] --- [%s] --- [ffmpeg]\n", header);
+    }
+
+    for (int y = 0; y < 16; ++y) {
         for (int x = 0; x < 16; ++x) {
             DUMP_CHANGE("%02x ", mb[x], luma_cache[y + x*stride])
         }
