@@ -31,6 +31,36 @@
 
 #include "h264dec.h"
 
+typedef struct H264MBContextOut {
+    int             req_mb_num;
+    int             search_mb;
+    int             search_mb_result_limit;
+    int             search_mb_result_index;
+    int             *search_mb_result;
+    int             debug;
+
+    int             mb_type;
+    int             mb_x;
+    int             mb_y;
+    int             mb_xy;
+
+    uint8_t         luma_decoded[16*16];
+
+    // Data related to macroblock DC coefficients
+    int16_t         mb_data[16 * 16]; // luma DC plane
+    int16_t         mb_luma_dc[16];
+    uint8_t         non_zero_count_cache[15 * 8];
+    int             dequant_coeff;
+
+    // Data related to macroblock prediction
+    uint8_t         top_border[8 + 16 + 8];
+    uint8_t         luma_top[8 + 16 + 8];
+    uint8_t         luma_left[16];
+    int             mb_field_decoding_flag;
+    int             deblocking_filter;
+    int             intra16x16_pred_mode;
+} H264MBContextOut;
+
 
 /**
  * H264MBContext
@@ -252,35 +282,9 @@ typedef struct H264MBContext {
     AVBufferPool *motion_val_pool;
     AVBufferPool *ref_index_pool;
     int ref2frm[MAX_SLICES][2][64];     ///< reference to frame number lists, used in the loop filter, the first 2 are for -2,-1
-#define MAX_MB_DATA_SIZE 4*1024
+
     // H264MB Specific data
-    int             req_mb_num;
-    int             search_mb;
-    int             search_mb_result_limit;
-    int             search_mb_result_index;
-    int             *search_mb_result;
-    int             debug;
-
-    int             mb_type;
-    int             mb_x;
-    int             _mb_y; // mb_y is defined already
-    int             mb_xy;
-
-    uint8_t         luma_decoded[16*16];
-
-    // Data related to macroblock DC coefficients
-    int16_t         mb_data[16 * 16]; // luma DC plane
-    int16_t         mb_luma_dc[16];
-    uint8_t         non_zero_count_cache[15 * 8];
-    int             dequant_coeff;
-
-    // Data related to macroblock prediction
-    uint8_t         top_border[8 + 16 + 8];
-    uint8_t         luma_top[8 + 16 + 8];
-    uint8_t         luma_left[16];
-    int             mb_field_decoding_flag;
-    int             deblocking_filter;
-    int             intra16x16_pred_mode;
+    H264MBContextOut cur_mb_ctx_out;
 } H264MBContext;
 
 #define H264MB_DEBUG_LUMA           (1 << 0)
@@ -288,11 +292,11 @@ typedef struct H264MBContext {
 #define H264MB_DEBUG_CONTEXT        (1 << 2)
 #define H264MB_DEBUG_ALL            (H264MB_DEBUG_LUMA | H264MB_DEBUG_DCT_COEF | H264MB_DEBUG_CONTEXT)
 
-#define IS_H264MB_DEBUG(context, flag) (((context)->debug & (flag)) != 0)
+#define IS_H264MB_DEBUG(context, flag) (((context)->cur_mb_ctx_out.debug & (flag)) != 0)
 
 #define H264MB_SEARCH_LIMIT     100
 
-#define IS_H264MB_SEARCH(context) ((context)->search_mb == 1)
+#define IS_H264MB_SEARCH(context) ((context)->cur_mb_ctx_out.search_mb == 1)
 
 void store_mb_pred_type(H264MBContext *h, int mb_xy);
 

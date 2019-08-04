@@ -445,7 +445,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
     
     ...
     
-    if(hmb->req_mb_num == sl->mb_xy)
+    if(hmb->cur_mb_ctx_out.req_mb_num)
         save_h264mb_context(h, sl);
     ff_h264_hl_decode_mb(h, sl);
     

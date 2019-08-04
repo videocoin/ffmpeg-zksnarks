@@ -1910,7 +1910,7 @@ static av_always_inline void decode_cabac_luma_residual(const H264Context *h, H2
 static void init_mb_record(H264MBContext *h)
 {
 	//if(h->req_mb_num == h->crnt_mb_num) {
-		memset(h->mb_data, 0, sizeof(h->mb_data));
+		memset(h->cur_mb_ctx_out.mb_data, 0, sizeof(h->cur_mb_ctx_out.mb_data));
 	//}
 }
 

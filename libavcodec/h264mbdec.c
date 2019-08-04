@@ -405,9 +405,9 @@ static av_cold int h4mb_decode_init(AVCodecContext *avctx)
     ret = h264_init_context(avctx, h);
     if (ret < 0)
         return ret;
-    hmb->debug = 0;
-    hmb->req_mb_num = -1;
-    hmb->search_mb = 0;
+    hmb->cur_mb_ctx_out.debug = 0;
+    hmb->cur_mb_ctx_out.req_mb_num = -1;
+    hmb->cur_mb_ctx_out.search_mb = 0;
     ret = ff_thread_once(&h264_vlc_init, ff_h264_decode_init_vlc);
     if (ret != 0) {
         av_log(avctx, AV_LOG_ERROR, "pthread_once has failed.");
@@ -862,33 +862,35 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
     av_dict_set(&dst->metadata, "stereo_mode", ff_h264_sei_stereo_mode(&h->sei.frame_packing), 0);
 
     {
-		add_metadata(dst, "mb", (uint8_t *)hmb->mb_data, sizeof(hmb->mb_data));
-		add_metadata(dst, "mb_luma_dc", (uint8_t *)hmb->mb_luma_dc, sizeof(hmb->mb_luma_dc));
-		add_metadata(dst, "non_zero_count_cache", hmb->non_zero_count_cache, sizeof(hmb->non_zero_count_cache));
+        H264MBContextOut *out = &hmb->cur_mb_ctx_out;
 
-		av_dict_set_int(&dst->metadata, "dequant_coeff", hmb->dequant_coeff, 0);
+        add_metadata(dst, "mb", (uint8_t *)out->mb_data, sizeof(out->mb_data));
+        add_metadata(dst, "mb_luma_dc", (uint8_t *)out->mb_luma_dc, sizeof(out->mb_luma_dc));
+        add_metadata(dst, "non_zero_count_cache", out->non_zero_count_cache, sizeof(out->non_zero_count_cache));
 
-        av_dict_set_int(&dst->metadata, "mb_type", hmb->mb_type, 0);
-        av_dict_set_int(&dst->metadata, "mb_x", hmb->mb_x, 0);
-        av_dict_set_int(&dst->metadata, "mb_y", hmb->_mb_y, 0);
+        av_dict_set_int(&dst->metadata, "dequant_coeff", out->dequant_coeff, 0);
+
+        av_dict_set_int(&dst->metadata, "mb_type", out->mb_type, 0);
+        av_dict_set_int(&dst->metadata, "mb_x", out->mb_x, 0);
+        av_dict_set_int(&dst->metadata, "mb_y", out->mb_y, 0);
         av_dict_set_int(&dst->metadata, "mb_width", hmb->mb_width, 0);
         av_dict_set_int(&dst->metadata, "mb_height", hmb->mb_height, 0);
-        av_dict_set_int(&dst->metadata, "mb_xy", hmb->mb_xy, 0);
-        av_dict_set_int(&dst->metadata, "intra16x16_pred_mode", hmb->intra16x16_pred_mode, 0);
-        av_dict_set_int(&dst->metadata, "mb_field_decoding_flag", hmb->mb_field_decoding_flag, 0);
-        av_dict_set_int(&dst->metadata, "deblocking_filter", hmb->deblocking_filter, 0);
+        av_dict_set_int(&dst->metadata, "mb_xy", out->mb_xy, 0);
+        av_dict_set_int(&dst->metadata, "intra16x16_pred_mode", out->intra16x16_pred_mode, 0);
+        av_dict_set_int(&dst->metadata, "mb_field_decoding_flag", out->mb_field_decoding_flag, 0);
+        av_dict_set_int(&dst->metadata, "deblocking_filter", out->deblocking_filter, 0);
 
-        add_metadata(dst, "top_border", hmb->top_border, sizeof(hmb->top_border));
-        add_metadata(dst, "luma_top", hmb->luma_top, sizeof(hmb->luma_top));
-        add_metadata(dst, "luma_left", hmb->luma_left, sizeof(hmb->luma_left));
-        add_metadata(dst, "luma_decoded", hmb->luma_decoded, sizeof(hmb->luma_decoded));
+        add_metadata(dst, "top_border", out->top_border, sizeof(out->top_border));
+        add_metadata(dst, "luma_top", out->luma_top, sizeof(out->luma_top));
+        add_metadata(dst, "luma_left", out->luma_left, sizeof(out->luma_left));
+        add_metadata(dst, "luma_decoded", out->luma_decoded, sizeof(out->luma_decoded));
 
-        if (hmb->search_mb == 1) {
-            add_metadata(dst, "search_mb_result", hmb->search_mb_result, sizeof(int) * hmb->search_mb_result_index);
-            av_dict_set_int(&dst->metadata, "search_mb_result_index", hmb->search_mb_result_index, 0);
-            free(hmb->search_mb_result);
-            hmb->search_mb_result = NULL;
-            hmb->search_mb_result_index = hmb->search_mb_result_limit = 0;
+        if (out->search_mb == 1) {
+            add_metadata(dst, "search_mb_result", out->search_mb_result, sizeof(int) * out->search_mb_result_index);
+            av_dict_set_int(&dst->metadata, "search_mb_result_index", out->search_mb_result_index, 0);
+            free(out->search_mb_result);
+            out->search_mb_result = NULL;
+            out->search_mb_result_index = out->search_mb_result_limit = 0;
         }
     }
 
@@ -1021,17 +1023,17 @@ static int read_options(H264MBContext *hmb, AVPacket *pkt)
     char *sideData = av_packet_get_side_data(pkt, AV_PKT_DATA_STRINGS_METADATA, &sideDataSize);
     AVDictionary *frame_dict = NULL;
     if (sideData && av_packet_unpack_dictionary(sideData, sideDataSize, &frame_dict) == 0) {
+        H264MBContextOut *out = &hmb->cur_mb_ctx_out;
+        out->req_mb_num = get_option_int(frame_dict, "req_mb", -1);
+        out->debug = get_option_int(frame_dict, "debug", 0);
+        out->search_mb = get_option_int(frame_dict, "search_mb", 0);
 
-        hmb->req_mb_num = get_option_int(frame_dict, "req_mb", -1);
-        hmb->debug = get_option_int(frame_dict, "debug", 0);
-        hmb->search_mb = get_option_int(frame_dict, "search_mb", 0);
-
-        if (hmb->search_mb == 1) {
-            hmb->search_mb_result_index = 0;
-            hmb->search_mb_result_limit = H264MB_SEARCH_LIMIT;
-            if (hmb->search_mb_result) {
-                free(hmb->search_mb_result);
-                hmb->search_mb_result = NULL;
+        if (out->search_mb == 1) {
+            out->search_mb_result_index = 0;
+            out->search_mb_result_limit = H264MB_SEARCH_LIMIT;
+            if (out->search_mb_result) {
+                free(out->search_mb_result);
+                out->search_mb_result = NULL;
             }
         }
 
@@ -1116,13 +1118,14 @@ static int h4mb_decode_frame(AVCodecContext *avctx, void *data,
     return get_consumed_bytes(buf_index, buf_size);
 }
 
-void dump_h264mb_context(const char *header, H264MBContext *h)
+void dump_h264mb_context(const char *header, H264MBContext *hmb)
 {
+    H264MBContextOut *h = &hmb->cur_mb_ctx_out;
     if (header) {
         printf("[macro block context] --- [%s] --- [macro block context]\n", header);
     }
     printf("[macro block context] prediction type: %d\n", h->intra16x16_pred_mode);
-    printf("[macro block context] x: %03d  y: %03d  xy: %03d\n", h->mb_x, h->_mb_y, h->mb_xy);
+    printf("[macro block context] x: %03d  y: %03d  xy: %03d\n", h->mb_x, h->mb_y, h->mb_xy);
 
     for (int i = 0; i < 8; ++i) {
         printf("%02x ", h->top_border[i]);
@@ -1282,8 +1285,9 @@ void dump_idct_coefficients(const char *header, H264SliceContext *sl, int reset_
     }
 }
 
-void store_mb_pred_type(H264MBContext *h, int mb_xy)
+void store_mb_pred_type(H264MBContext *hmb, int mb_xy)
 {
+    H264MBContextOut *h = &hmb->cur_mb_ctx_out;
     if (h->search_mb_result == NULL) {
         h->search_mb_result = (int *)malloc(sizeof(int) * h->search_mb_result_limit);
     }
