@@ -453,7 +453,7 @@ int ff_h264mb_update_thread_context(AVCodecContext *dst,
     return err;
 }
 
-static int h264_frame_start(H264Context *h)
+static int h264_frame_start(H264MBContext *h)
 {
     H264Picture *pic;
     int i, ret;
@@ -507,6 +507,8 @@ static int h264_frame_start(H264Context *h)
     if(!h->frame_recovered && !h->avctx->hwaccel)
         ff_color_frame(pic->f, c);
 
+    h->cur_mb_ctx_out_ptr = (H264MBContextOut *)malloc(sizeof(H264MBContextOut));
+    memset(h->cur_mb_ctx_out_ptr, 0, sizeof(H264MBContextOut));
     h->cur_pic_ptr = pic;
     ff_h264_unref_picture(h, &h->cur_pic);
     if (CONFIG_ERROR_RESILIENCE) {
@@ -1341,12 +1343,15 @@ static int h264_export_frame_props(H264Context *h)
     return 0;
 }
 
-static int h264_select_output_frame(H264Context *h)
+static int h264_select_output_frame(H264MBContext *h)
 {
     const SPS *sps = h->ps.sps;
     H264Picture *out = h->cur_pic_ptr;
     H264Picture *cur = h->cur_pic_ptr;
     int i, pics, out_of_order, out_idx;
+
+    H264MBContextOut *cur_ctx = h->cur_mb_ctx_out_ptr;
+    H264MBContextOut *out_ctx = h->cur_mb_ctx_out_ptr;
 
     cur->mmco_reset = h->mmco_reset;
     h->mmco_reset = 0;
@@ -1387,11 +1392,13 @@ static int h264_select_output_frame(H264Context *h)
 
     av_assert0(pics <= MAX_DELAYED_PIC_COUNT);
 
+    h->delayed_mb_ctx_out[pics] = cur_ctx;
     h->delayed_pic[pics++] = cur;
     if (cur->reference == 0)
         cur->reference = DELAYED_PIC_REF;
 
     out     = h->delayed_pic[0];
+    out_ctx = h->delayed_mb_ctx_out[0];
     out_idx = 0;
     for (i = 1; h->delayed_pic[i] &&
                 !h->delayed_pic[i]->f->key_frame &&
@@ -1399,6 +1406,7 @@ static int h264_select_output_frame(H264Context *h)
          i++)
         if (h->delayed_pic[i]->poc < out->poc) {
             out     = h->delayed_pic[i];
+            out_ctx = h->delayed_mb_ctx_out[i];
             out_idx = i;
         }
     if (h->avctx->has_b_frames == 0 &&
@@ -1408,11 +1416,14 @@ static int h264_select_output_frame(H264Context *h)
 
     if (out_of_order || pics > h->avctx->has_b_frames) {
         out->reference &= ~DELAYED_PIC_REF;
-        for (i = out_idx; h->delayed_pic[i]; i++)
+        for (i = out_idx; h->delayed_pic[i]; i++) {
             h->delayed_pic[i] = h->delayed_pic[i + 1];
+            h->delayed_mb_ctx_out[i] = h->delayed_mb_ctx_out[i + 1];
+        }
     }
     if (!out_of_order && pics > h->avctx->has_b_frames) {
         h->next_output_pic = out;
+        h->next_mb_ctx_out = out_ctx;
         if (out_idx == 0 && h->delayed_pic[0] && (h->delayed_pic[0]->f->key_frame || h->delayed_pic[0]->mmco_reset)) {
             h->next_outputed_poc = INT_MIN;
         } else
@@ -2579,9 +2590,9 @@ static void save_decoded_luma(H264MBContext *h, H264SliceContext *sl)
     const int mb_xy   = sl->mb_xy;
     const int mb_type = h->cur_pic.mb_type[mb_xy];
 
-    if (IS_INTRA16x16(mb_type)) {
+//    if (IS_INTRA16x16(mb_type)) {
 
-        H264MBContextOut *out = &h->cur_mb_ctx_out;
+        H264MBContextOut *out = h->cur_mb_ctx_out_ptr;
 
         int y;
         ptrdiff_t stride = sl->linesize;
@@ -2589,9 +2600,6 @@ static void save_decoded_luma(H264MBContext *h, H264SliceContext *sl)
         uint8_t * luma_dst = out->luma_decoded;
 
         for (y = 0; y < 16; ++y) {
-
-            printf("Macroblock %02d row starts from %p\n", y, luma_src);
-
             memcpy(luma_dst, luma_src, 16);
             luma_dst += 16;
             luma_src += stride;
@@ -2599,7 +2607,7 @@ static void save_decoded_luma(H264MBContext *h, H264SliceContext *sl)
 
         if (IS_H264MB_DEBUG(h, H264MB_DEBUG_LUMA))
             dump_luma_block2("save_decoded_luma", out->luma_decoded, 16, 0);
-    }
+//    }
 }
 
 static void save_h264mb_context(H264MBContext *h, H264SliceContext *sl)
@@ -2626,7 +2634,7 @@ static void save_h264mb_context(H264MBContext *h, H264SliceContext *sl)
 
     // INTRA 16x16 mode
     if (IS_INTRA16x16(mb_type)) {
-        H264MBContextOut *out = &h->cur_mb_ctx_out;
+        H264MBContextOut *out = h->cur_mb_ctx_out_ptr;
         ptrdiff_t stride = sl->linesize;
 
         out->intra16x16_pred_mode = sl->intra16x16_pred_mode;
@@ -2762,14 +2770,11 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             // STOP_TIMER("decode_mb_cabac")
 
             if (ret >= 0) {
-                if(hmb->cur_mb_ctx_out.req_mb_num == sl->mb_xy)
+                if(hmb->req_mb_num == sl->mb_xy)
                     save_h264mb_context(h, sl);
 
-                if (IS_H264MB_SEARCH(hmb) && IS_INTRA16x16(h->cur_pic.mb_type[sl->mb_xy]))
-                    store_mb_pred_type(h, sl->mb_xy);
-
                 ff_h264_hl_decode_mb(h, sl);
-                if (hmb->cur_mb_ctx_out.req_mb_num == sl->mb_xy) {
+                if (hmb->req_mb_num == sl->mb_xy) {
                     save_decoded_luma(h, sl);
                 }
 
@@ -2782,14 +2787,11 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                 ret = ff_h264mb_decode_mb_cabac((H264MBContext *)h, sl);
 
                 if (ret >= 0) {
-                    if(hmb->cur_mb_ctx_out.req_mb_num == sl->mb_xy)
+                    if(hmb->req_mb_num == sl->mb_xy)
                         save_h264mb_context(h, sl);
 
-                    if (IS_H264MB_SEARCH(hmb) && IS_INTRA16x16(h->cur_pic.mb_type[sl->mb_xy]))
-                        store_mb_pred_type(h, sl->mb_xy);
-
                     ff_h264_hl_decode_mb(h, sl);
-                    if (hmb->cur_mb_ctx_out.req_mb_num == sl->mb_xy) {
+                    if (hmb->req_mb_num == sl->mb_xy) {
                         save_decoded_luma(h, sl);
                     }
                 }
@@ -2854,14 +2856,11 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             ret = ff_h264_decode_mb_cavlc(h, sl);
 
             if (ret >= 0) {
-                if(hmb->cur_mb_ctx_out.req_mb_num == sl->mb_xy)
+                if(hmb->req_mb_num == sl->mb_xy)
                     save_h264mb_context(h, sl);
 
-                if (IS_H264MB_SEARCH(hmb) && IS_INTRA16x16(h->cur_pic.mb_type[sl->mb_xy]))
-                    store_mb_pred_type(h, sl->mb_xy);
-
                 ff_h264_hl_decode_mb(h, sl);
-                if (hmb->cur_mb_ctx_out.req_mb_num == sl->mb_xy) {
+                if (hmb->req_mb_num == sl->mb_xy) {
                     save_decoded_luma(h, sl);
                 }
             }
@@ -2871,14 +2870,11 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                 ret = ff_h264_decode_mb_cavlc(h, sl);
 
                 if (ret >= 0) {
-                    if(hmb->cur_mb_ctx_out.req_mb_num == sl->mb_xy)
+                    if(hmb->req_mb_num == sl->mb_xy)
                         save_h264mb_context(h, sl);
 
-                    if (IS_H264MB_SEARCH(hmb) && IS_INTRA16x16(h->cur_pic.mb_type[sl->mb_xy]))
-                        store_mb_pred_type(h, sl->mb_xy);
-
                     ff_h264_hl_decode_mb(h, sl);
-                    if (hmb->cur_mb_ctx_out.req_mb_num == sl->mb_xy) {
+                    if (hmb->req_mb_num == sl->mb_xy) {
                         save_decoded_luma(h, sl);
                     }
                 }

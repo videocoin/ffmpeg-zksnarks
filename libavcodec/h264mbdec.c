@@ -405,9 +405,8 @@ static av_cold int h4mb_decode_init(AVCodecContext *avctx)
     ret = h264_init_context(avctx, h);
     if (ret < 0)
         return ret;
-    hmb->cur_mb_ctx_out.debug = 0;
-    hmb->cur_mb_ctx_out.req_mb_num = -1;
-    hmb->cur_mb_ctx_out.search_mb = 0;
+    hmb->debug = 0;
+    hmb->req_mb_num = -1;
     ret = ff_thread_once(&h264_vlc_init, ff_h264_decode_init_vlc);
     if (ret != 0) {
         av_log(avctx, AV_LOG_ERROR, "pthread_once has failed.");
@@ -861,8 +860,9 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
 
     av_dict_set(&dst->metadata, "stereo_mode", ff_h264_sei_stereo_mode(&h->sei.frame_packing), 0);
 
-    {
-        H264MBContextOut *out = &hmb->cur_mb_ctx_out;
+    if (hmb->next_mb_ctx_out) {
+        H264MBContextOut *out = hmb->next_mb_ctx_out;
+        hmb->next_mb_ctx_out = NULL;
 
         add_metadata(dst, "mb", (uint8_t *)out->mb_data, sizeof(out->mb_data));
         add_metadata(dst, "mb_luma_dc", (uint8_t *)out->mb_luma_dc, sizeof(out->mb_luma_dc));
@@ -885,13 +885,7 @@ static int output_frame(H264Context *h, AVFrame *dst, H264Picture *srcp)
         add_metadata(dst, "luma_left", out->luma_left, sizeof(out->luma_left));
         add_metadata(dst, "luma_decoded", out->luma_decoded, sizeof(out->luma_decoded));
 
-        if (out->search_mb == 1) {
-            add_metadata(dst, "search_mb_result", out->search_mb_result, sizeof(int) * out->search_mb_result_index);
-            av_dict_set_int(&dst->metadata, "search_mb_result_index", out->search_mb_result_index, 0);
-            free(out->search_mb_result);
-            out->search_mb_result = NULL;
-            out->search_mb_result_index = out->search_mb_result_limit = 0;
-        }
+        free(out);
     }
 
     if (srcp->sei_recovery_frame_cnt == 0)
@@ -1023,19 +1017,10 @@ static int read_options(H264MBContext *hmb, AVPacket *pkt)
     char *sideData = av_packet_get_side_data(pkt, AV_PKT_DATA_STRINGS_METADATA, &sideDataSize);
     AVDictionary *frame_dict = NULL;
     if (sideData && av_packet_unpack_dictionary(sideData, sideDataSize, &frame_dict) == 0) {
-        H264MBContextOut *out = &hmb->cur_mb_ctx_out;
-        out->req_mb_num = get_option_int(frame_dict, "req_mb", -1);
-        out->debug = get_option_int(frame_dict, "debug", 0);
-        out->search_mb = get_option_int(frame_dict, "search_mb", 0);
+        hmb->next_mb_ctx_out = NULL;
 
-        if (out->search_mb == 1) {
-            out->search_mb_result_index = 0;
-            out->search_mb_result_limit = H264MB_SEARCH_LIMIT;
-            if (out->search_mb_result) {
-                free(out->search_mb_result);
-                out->search_mb_result = NULL;
-            }
-        }
+        hmb->req_mb_num = get_option_int(frame_dict, "req_mb", -1);
+        hmb->debug = get_option_int(frame_dict, "debug", 0);
 
         av_dict_free(&frame_dict);
     }
@@ -1049,7 +1034,7 @@ static int h4mb_decode_frame(AVCodecContext *avctx, void *data,
     const uint8_t *buf = avpkt->data;
     int buf_size       = avpkt->size;
     H264Context *h     = avctx->priv_data;
-    H264MBContext *hmb     = avctx->priv_data;
+    H264MBContext *hmb = avctx->priv_data;
     AVFrame *pict      = data;
     int buf_index;
     int ret;
@@ -1120,7 +1105,7 @@ static int h4mb_decode_frame(AVCodecContext *avctx, void *data,
 
 void dump_h264mb_context(const char *header, H264MBContext *hmb)
 {
-    H264MBContextOut *h = &hmb->cur_mb_ctx_out;
+    H264MBContextOut *h = hmb->cur_mb_ctx_out_ptr;
     if (header) {
         printf("[macro block context] --- [%s] --- [macro block context]\n", header);
     }
@@ -1283,22 +1268,6 @@ void dump_idct_coefficients(const char *header, H264SliceContext *sl, int reset_
         }
         printf("\n\n");
     }
-}
-
-void store_mb_pred_type(H264MBContext *hmb, int mb_xy)
-{
-    H264MBContextOut *h = &hmb->cur_mb_ctx_out;
-    if (h->search_mb_result == NULL) {
-        h->search_mb_result = (int *)malloc(sizeof(int) * h->search_mb_result_limit);
-    }
-    if (h->search_mb_result_index == h->search_mb_result_limit-1) {
-        h->search_mb_result_limit += H264MB_SEARCH_LIMIT;
-        int *new_search_result = (int *)malloc(sizeof(int) * h->search_mb_result_limit);
-        memcpy(new_search_result, h->search_mb_result, sizeof(int) * (h->search_mb_result_index+1));
-        free(h->search_mb_result);
-        h->search_mb_result = new_search_result;
-    }
-    h->search_mb_result[h->search_mb_result_index++] = mb_xy;
 }
 
 #define OFFSET(x) offsetof(H264Context, x)

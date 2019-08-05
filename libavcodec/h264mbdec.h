@@ -32,13 +32,6 @@
 #include "h264dec.h"
 
 typedef struct H264MBContextOut {
-    int             req_mb_num;
-    int             search_mb;
-    int             search_mb_result_limit;
-    int             search_mb_result_index;
-    int             *search_mb_result;
-    int             debug;
-
     int             mb_type;
     int             mb_x;
     int             mb_y;
@@ -284,7 +277,13 @@ typedef struct H264MBContext {
     int ref2frm[MAX_SLICES][2][64];     ///< reference to frame number lists, used in the loop filter, the first 2 are for -2,-1
 
     // H264MB Specific data
-    H264MBContextOut cur_mb_ctx_out;
+    H264MBContextOut *cur_mb_ctx_out_ptr;
+    H264MBContextOut *delayed_mb_ctx_out[MAX_DELAYED_PIC_COUNT + 2];
+    H264MBContextOut *next_mb_ctx_out;
+
+    int             req_mb_num;
+    int             debug;
+
 } H264MBContext;
 
 #define H264MB_DEBUG_LUMA           (1 << 0)
@@ -292,13 +291,7 @@ typedef struct H264MBContext {
 #define H264MB_DEBUG_CONTEXT        (1 << 2)
 #define H264MB_DEBUG_ALL            (H264MB_DEBUG_LUMA | H264MB_DEBUG_DCT_COEF | H264MB_DEBUG_CONTEXT)
 
-#define IS_H264MB_DEBUG(context, flag) (((context)->cur_mb_ctx_out.debug & (flag)) != 0)
-
-#define H264MB_SEARCH_LIMIT     100
-
-#define IS_H264MB_SEARCH(context) ((context)->cur_mb_ctx_out.search_mb == 1)
-
-void store_mb_pred_type(H264MBContext *h, int mb_xy);
+#define IS_H264MB_DEBUG(context, flag) (((context)->debug & (flag)) != 0)
 
 void dump_luma_block(const char *header, H264SliceContext *sl, int reset_cache);
 void dump_luma_block2(const char *header, uint8_t *mb, int stride, int reset_cache);
