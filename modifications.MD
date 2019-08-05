@@ -78,6 +78,30 @@ The customization includes the following:
 
 ### h264mbdec.h (New file based on h264dec.h)
 ```
+typedef struct H264MBContextOut {
+    int             mb_type;
+    int             mb_x;
+    int             mb_y;
+    int             mb_xy;
+
+    uint8_t         luma_decoded[16*16];
+
+    // Data related to macroblock DC coefficients
+    int16_t         mb_data[16 * 16]; // luma DC plane
+    int16_t         mb_luma_dc[16];
+    uint8_t         non_zero_count_cache[15 * 8];
+    int             dequant_coeff;
+
+    // Data related to macroblock prediction
+    uint8_t         top_border[8 + 16 + 8];
+    uint8_t         luma_top[8 + 16 + 8];
+    uint8_t         luma_left[16];
+    int             mb_field_decoding_flag;
+    int             deblocking_filter;
+    int             intra16x16_pred_mode;
+} H264MBContextOut;
+
+
 /**
  * H264MBContext
  */
@@ -298,32 +322,15 @@ typedef struct H264MBContext {
     AVBufferPool *motion_val_pool;
     AVBufferPool *ref_index_pool;
     int ref2frm[MAX_SLICES][2][64];     ///< reference to frame number lists, used in the loop filter, the first 2 are for -2,-1
-#define MAX_MB_DATA_SIZE 4*1024
+
     // H264MB Specific data
+    H264MBContextOut *cur_mb_ctx_out_ptr;
+    H264MBContextOut *delayed_mb_ctx_out[MAX_DELAYED_PIC_COUNT + 2];
+    H264MBContextOut *next_mb_ctx_out;
+
     int             req_mb_num;
-    int             req_frame_num;
     int             debug;
 
-    int             mb_type;
-    int             mb_x;
-    int             _mb_y; // mb_y is defined already
-    int             mb_xy;
-
-    uint8_t         luma_decoded[16*16];
-
-    // Data related to macroblock DC coefficients
-    int16_t         mb_data[16 * 16]; // luma DC plane
-    int16_t         mb_luma_dc[16];
-    uint8_t         non_zero_count_cache[15 * 8];
-    int             dequant_coeff;
-
-    // Data related to macroblock prediction
-    uint8_t         top_border[8 + 16 + 8];
-    uint8_t         luma_top[8 + 16 + 8];
-    uint8_t         luma_left[16];
-    int             mb_field_decoding_flag;
-    int             deblocking_filter;
-    int             intra16x16_pred_mode;
 } H264MBContext;
 
 
@@ -445,7 +452,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
     
     ...
     
-    if(hmb->cur_mb_ctx_out.req_mb_num)
+    if(hmb->req_mb_num)
         save_h264mb_context(h, sl);
     ff_h264_hl_decode_mb(h, sl);
     
